@@ -1,8 +1,56 @@
 import json
+from typing import Optional
+from .user_profile import UserProfile, get_default_profile
 
-def get_prompt2_storyboard(outline, reference_image_path):
+
+def get_prompt2_storyboard(
+    outline: str,
+    reference_image_path: Optional[str] = None,
+    user_profile: Optional[UserProfile] = None
+):
+    """
+    生成分镜脚本的提示词
+    
+    Args:
+        outline: 大纲JSON字符串
+        reference_image_path: 参考图片路径（可选）
+        user_profile: 用户配置（年龄段、编程语言、难度），可选
+    
+    Returns:
+        完整的提示词字符串
+    """
+    # 如果没有提供用户配置，使用默认配置
+    if user_profile is None:
+        user_profile = get_default_profile()
+    
+    # 获取用户配置的提示词片段
+    profile_prompt = user_profile.generate_profile_prompt()
+    
+    # 获取具体的配置描述
+    age_desc = user_profile.get_age_group_description()
+    diff_desc = user_profile.get_difficulty_description()
+    lang_desc = user_profile.get_language_description()
+    
     base_prompt = f""" 
     你是一位**硬核算法可视化导演**。请将大纲转化为详细的 Manim 动画脚本。
+
+    {profile_prompt}
+
+    ## 根据用户配置的动画风格要求
+
+    ### 受众适配
+    - 目标观众：**{age_desc['audience']}**
+    - 讲解节奏：{age_desc['pace']}
+    - 用语规范：{age_desc['vocabulary']}
+    
+    ### 难度适配
+    - 难度级别：**{diff_desc['level']}**
+    - 动画风格：{diff_desc['visual_style']}
+    - 代码展示风格：{diff_desc['code_style']}
+    
+    ### 编程语言
+    - 代码语言：**{lang_desc['name']}**
+    - 代码风格：{lang_desc['style']}
 
     # 通用视觉映射系统 (Universal Visual Mapping System)
 
@@ -12,10 +60,10 @@ def get_prompt2_storyboard(outline, reference_image_path):
           - **Case B: 代码演示场景 (With Code - DEFAULT for Algorithms)** -> **采用 "左侧分割 + 右侧全屏" 布局 (Split-Left Layout)**:
             - **规则**: 凡是讲解算法具体步骤（循环、判断、交换、递归）的章节，**必须**使用此模式展示代码片段。严禁只在最后才展示代码。
             - **左上区域 (Top-Left, ~30% height)**: 放置讲解文字 (Lecture Notes)。
-            - **左下区域 (Bottom-Left, ~70% height)**: 放置代码片段 (Code Snippet)。
+            - **左下区域 (Bottom-Left, ~70% height)**: 放置 **{lang_desc['name']}** 代码片段 (Code Snippet)。
             - **右侧区域 (Right Half, 100% height)**: 放置核心可视化/动画 (Main Visual)。
           - **Case C: 完整代码/纯代码 (Full Code - FINAL SECTION ONLY)**:
-            - **规则**: 最后一个章节专门展示完整源码。
+            - **规则**: 最后一个章节专门展示完整 **{lang_desc['name']}** 源码。
             - **布局**: **隐藏左侧文字** (Lecture Notes opacity=0)，将代码对象放大并居中 (`scale(0.8).move_to(ORIGIN)`)。
             - **分页**: 如果代码超过 20 行，必须拆分为连续的子场景 (Sub-scenes, e.g., `Scene 12.1`, `Scene 12.2`)。
 
@@ -37,6 +85,12 @@ def get_prompt2_storyboard(outline, reference_image_path):
     3.  **脚本要求**:
         - 每一句旁白（Lecture Line）必须对应代码的解释。
         - 每一个动画（Animation）必须对应数据的变化（Create, Transform, FadeOut）。
+        - **节奏控制**：根据难度"{diff_desc['level']}"，{diff_desc['visual_style']}
+
+    4.  **语言适配要求**:
+        - 所有代码示例必须使用 **{lang_desc['name']}**
+        - 代码语法高亮应适配 {lang_desc['name']} 语法
+        - 注释风格：{diff_desc['code_style']}
 
     ## 输入大纲
     {outline}

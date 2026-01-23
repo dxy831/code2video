@@ -1,10 +1,61 @@
 import os
+from typing import Optional
+from .user_profile import UserProfile, get_default_profile
 
-def get_prompt3_code(regenerate_note, section, base_class):
+
+def get_prompt3_code(
+    regenerate_note: str,
+    section,
+    base_class: str,
+    user_profile: Optional[UserProfile] = None
+):
+    """
+    生成Manim代码的提示词
+    
+    Args:
+        regenerate_note: 重新生成的注意事项
+        section: 章节信息对象
+        base_class: 基类代码
+        user_profile: 用户配置（年龄段、编程语言、难度），可选
+    
+    Returns:
+        完整的提示词字符串
+    """
+    # 如果没有提供用户配置，使用默认配置
+    if user_profile is None:
+        user_profile = get_default_profile()
+    
+    # 获取用户配置的提示词片段
+    profile_prompt = user_profile.generate_profile_prompt()
+    
+    # 获取具体的配置描述
+    age_desc = user_profile.get_age_group_description()
+    diff_desc = user_profile.get_difficulty_description()
+    lang_desc = user_profile.get_language_description()
+    
     return f"""
     你是一位精通 Manim 的 Python 专家。请编写代码生成一个**解释复杂算法执行逻辑**的视频片段。
 
     {regenerate_note}
+
+    {profile_prompt}
+
+    ## 根据用户配置的代码生成要求
+
+    ### 受众适配
+    - 目标观众：**{age_desc['audience']}**
+    - 讲解节奏：{age_desc['pace']}
+    - 内容深度：{age_desc['depth']}
+    
+    ### 难度适配
+    - 难度级别：**{diff_desc['level']}**
+    - 动画风格：{diff_desc['visual_style']}
+    - 代码注释风格：{diff_desc['code_style']}
+    
+    ### 编程语言
+    - 示例代码语言：**{lang_desc['name']}**
+    - 代码风格：{lang_desc['style']}
+    - 语言特性：{lang_desc['features']}
 
     ### 核心任务：通用算法可视化 (Universal Algorithm Visualization)
     
@@ -40,12 +91,14 @@ def get_prompt3_code(regenerate_note, section, base_class):
     - **字体与可视性 (Visibility & Fonts)**:
       - **动画文字增强**: 所有位于 `main_group` (右侧动画) 内部的 `Text`/`MathTex`，字号必须 **加大一级** (Scale up by 1.2x or 1.5x)，确保在右侧区域清晰可见。
       - **代码高亮**: `code_obj` 必须启用语法高亮，背景尽量透明或深色适配，确保在左下角清晰。
+      - **代码语言**: 代码示例必须使用 **{lang_desc['name']}** 语法。
 
     ### 2. 交互与逻辑表现 (Interaction & Logic)
     - **代码高亮**: `self.play(Indicate(code_obj.code[line_idx]))`
     - **呼吸感时序 (Breathing Timing)**:
       - **关键规则**: 在 `self.play(Indicate(self.lecture))` (文字高亮) 结束之后，**必须强制插入** `self.wait(0.5)`。
       - **视线引导**: 先看左上文字 -> 停顿 0.5s -> 再看右侧动画或左下代码。严禁文字高亮与复杂动画同时开始。
+      - **节奏控制**：根据难度"{diff_desc['level']}"，{diff_desc['visual_style']}
     - **逻辑外显化**: 
       - 不要只让数据变色。如果代码里有 `if a > b`，你必须在屏幕上写出 `MathTex("5 > 3")`，显示它成立（变绿）或不成立（变红），然后再执行后续动作。
       - **递归**: 如果涉及递归，请在屏幕一角维护一个 `VGroup` 代表 Stack，每层递归 `add` 一个矩形，返回时 `remove`。
@@ -64,6 +117,7 @@ def get_prompt3_code(regenerate_note, section, base_class):
     - 必须继承 `TeachingScene`。
     - 确保代码逻辑完整：变量先定义后使用。
     - 节奏：`self.wait(1)` 非常重要，给观众思考时间。
+    - **代码示例语言**: 视频中展示的算法代码必须使用 **{lang_desc['name']}**
 
     ### 参考代码结构
     ```python
@@ -73,12 +127,14 @@ def get_prompt3_code(regenerate_note, section, base_class):
     class {section.id.title().replace('_', '')}Scene(TeachingScene):
         def construct(self):
             # 1. Setup Layout
-            code_raw = \"\"\"def complex_algo(data):
+            # 注意：这里的代码示例应使用 {lang_desc['name']} 语法
+            code_raw = \"\"\"// {lang_desc['name']} 代码示例
+def complex_algo(data):
     if check(data):
         optimize(data)
     else:
         process(data)\"\"\"
-            code = Code(code=code_raw, ...).to_edge(LEFT)
+            code = Code(code=code_raw, language="{lang_desc['name'].lower()}", ...).to_edge(LEFT)
             self.play(Create(code))
             
             # 2. Setup Data Structures (Example: A composite structure)
@@ -117,7 +173,8 @@ def get_prompt3_code(regenerate_note, section, base_class):
 - **Rule 4: Subtitle Fixed Position**: 解释性文字（Lecture Lines）通常使用 .to_edge(DOWN, buff=1.0) 固定在底部，不要让它随物体移动。
 """
 
-def get_regenerate_note (attempt, MAX_REGENERATE_TRIES):
+
+def get_regenerate_note(attempt, MAX_REGENERATE_TRIES):
     return f"""注意：这是第 {attempt}/{MAX_REGENERATE_TRIES} 次尝试生成代码。上一次生成的代码运行失败或效果不佳。请：
 简化复杂的动画逻辑，优先保证运行成功。
 确保所有的变量在使用前都已定义。

@@ -27,6 +27,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExec
 
 from gpt_request import *
 from prompts import *
+from prompts.user_profile import UserProfile, AgeGroup, DifficultyLevel, ProgrammingLanguage, get_default_profile, create_profile
 from utils import *
 from scope_refine import *
 from external_assets import process_storyboard_with_assets
@@ -69,6 +70,8 @@ class RunConfig:
     max_feedback_gen_code_tries: int = 3
     max_mllm_fix_bugs_tries: int = 3
     duration: int = 5
+    # 用户个性化配置
+    user_profile: Optional[UserProfile] = None
 
 
 class TeachingVideoAgent:
@@ -108,6 +111,9 @@ class TeachingVideoAgent:
         self.max_regenerate_tries = cfg.max_regenerate_tries
         self.max_feedback_gen_code_tries = cfg.max_feedback_gen_code_tries
         self.max_mllm_fix_bugs_tries = cfg.max_mllm_fix_bugs_tries
+        
+        # 用户个性化配置
+        self.user_profile = cfg.user_profile or get_default_profile()
 
         """2. Path for output"""
         self.output_dir = get_output_dir(idx=idx, knowledge_point=self.learning_topic, base_dir=folder)
@@ -179,7 +185,12 @@ class TeachingVideoAgent:
                 if (img_name := self.KNOWLEDGE2PATH.get(self.learning_topic)) is not None
                 else None
             )
-            prompt1 = get_prompt1_outline(knowledge_point=self.learning_topic, duration=self.duration, reference_image_path=refer_img_path)
+            prompt1 = get_prompt1_outline(
+                knowledge_point=self.learning_topic, 
+                duration=self.duration, 
+                reference_image_path=refer_img_path,
+                user_profile=self.user_profile
+            )
 
             print(f"📝 正在生成大纲...")
 
@@ -248,6 +259,7 @@ class TeachingVideoAgent:
             prompt2 = get_prompt2_storyboard(
                 outline=json.dumps(self.outline.__dict__, ensure_ascii=False, indent=2),
                 reference_image_path=refer_img_path,
+                user_profile=self.user_profile
             )
 
             for attempt in range(1, self.max_regenerate_tries + 1):
@@ -358,7 +370,12 @@ class TeachingVideoAgent:
                 )
 
         else:
-            code_gen_prompt = get_prompt3_code(regenerate_note=regenerate_note, section=section, base_class=base_class)
+            code_gen_prompt = get_prompt3_code(
+                regenerate_note=regenerate_note, 
+                section=section, 
+                base_class=base_class,
+                user_profile=self.user_profile
+            )
 
         response = self._request_api_and_track_tokens(code_gen_prompt, max_tokens=self.max_code_token_length)
         if response is None:
@@ -994,6 +1011,29 @@ def build_and_parse_args():
     # 新增参数：最大并行工作进程数
     parser.add_argument("--max_workers", type=int, default=None, help="Force specific number of workers, overriding auto-detection")
 
+    # 用户个性化配置参数
+    parser.add_argument(
+        "--age_group",
+        type=str,
+        choices=["high_school", "college", "professional"],
+        default="college",
+        help="目标受众年龄段: high_school(初高中生), college(大学/研究生), professional(职场人士)"
+    )
+    parser.add_argument(
+        "--programming_language",
+        type=str,
+        choices=["Python", "Java", "C++", "JavaScript", "Go", "Rust", "C#", "伪代码"],
+        default="Python",
+        help="代码示例使用的编程语言"
+    )
+    parser.add_argument(
+        "--difficulty",
+        type=str,
+        choices=["low", "medium", "high"],
+        default="medium",
+        help="内容难度级别: low(入门级), medium(进阶级), high(专家级)"
+    )
+
     return parser.parse_args()
 
 
@@ -1025,6 +1065,14 @@ if __name__ == "__main__":
     else:
         raise ValueError("必须提供 --knowledge_point 或 --knowledge_file")
 
+    # 创建用户个性化配置
+    user_profile = create_profile(
+        age_group=args.age_group,
+        programming_language=args.programming_language,
+        difficulty=args.difficulty
+    )
+    print(f"📋 用户配置: 年龄段={args.age_group}, 编程语言={args.programming_language}, 难度={args.difficulty}")
+
     cfg = RunConfig(
         api=api,
         iconfinder_api_key=args.iconfinder_api_key,
@@ -1037,6 +1085,7 @@ if __name__ == "__main__":
         max_mllm_fix_bugs_tries=args.max_mllm_fix_bugs_tries,
         feedback_rounds=args.feedback_rounds,
         duration=args.duration,
+        user_profile=user_profile,
     )
     
     # 优先使用命令行参数指定的 workers，否则自动计算
