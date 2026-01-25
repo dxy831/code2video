@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 :: ========== 1) Default values and constants ==========
@@ -13,24 +14,30 @@ set "MAX_FEEDBACK_GEN_CODE_TRIES=5"
 set "MAX_MLLM_FIX_BUGS_TRIES=5"
 set "FEEDBACK_ROUNDS=2"
 
-set "DEFAULT_KNOWLEDGE_POINT=Linear transformations and matrices"
-set "KNOWLEDGE_POINT_ARGS="
+:: ========== 用户个性化配置 ==========
+:: 要生成的知识点 (修改此处)
+set "KNOWLEDGE_POINT=二分搜索"
 
-:: ========== 2) Check if --knowledge_point is provided ==========
-set "found_kp=0"
-set "args=%*"
-for %%a in (%*) do (
-    if /i "%%a"=="--knowledge_point" (
-        set "found_kp=1"
-    )
-)
+:: 目标受众年龄段: high_school(初高中生), college(大学/研究生), professional(职场人士)
+set "AGE_GROUP=professional"
 
-if %found_kp% EQU 0 (
-    echo INFO: Using default knowledge point: %DEFAULT_KNOWLEDGE_POINT%
-    set "KNOWLEDGE_POINT_ARGS=--knowledge_point "%DEFAULT_KNOWLEDGE_POINT%""
-)
+:: 编程语言: Python, Java, C++, JavaScript, Go, Rust, C#, 伪代码
+set "PROGRAMMING_LANGUAGE=Java"
 
-:: ========== 3) Execute ==========
+:: 难度级别: low(入门级), medium(进阶级), high(专家级)
+set "DIFFICULTY=high"
+
+:: ========== 2) Execute ==========
+echo ==========================================
+echo    Code2Video - 知识点视频生成
+echo ==========================================
+echo 知识点: %KNOWLEDGE_POINT%
+echo 年龄段: %AGE_GROUP%
+echo 编程语言: %PROGRAMMING_LANGUAGE%
+echo 难度: %DIFFICULTY%
+echo API: %API%
+echo ==========================================
+
 python agent.py ^
   --API "%API%" ^
   --folder_prefix "%FOLDER_PREFIX%" ^
@@ -42,6 +49,9 @@ python agent.py ^
   --max_feedback_gen_code_tries "%MAX_FEEDBACK_GEN_CODE_TRIES%" ^
   --max_mllm_fix_bugs_tries "%MAX_MLLM_FIX_BUGS_TRIES%" ^
   --feedback_rounds "%FEEDBACK_ROUNDS%" ^
-  --parallel ^
-  %KNOWLEDGE_POINT_ARGS% ^
-  %*
+  --age_group "%AGE_GROUP%" ^
+  --programming_language "%PROGRAMMING_LANGUAGE%" ^
+  --difficulty "%DIFFICULTY%" ^
+  --knowledge_point "%KNOWLEDGE_POINT%"
+
+pause
