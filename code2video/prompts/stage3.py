@@ -62,39 +62,75 @@ def get_prompt3_code(
     不要硬编码特定的形状，而是根据算法逻辑选择最合适的 Manim 对象。
 
     ### 1. 动态布局系统 (Dynamic Layout System)
+    **【重要】左侧三层垂直布局，严禁重叠：**
     ```python
-    # 布局坐标系统 (Layout Coordinates):
-    # If Code Exists (有代码时):
-    #   self.lecture (文字): 强制吸顶 (.to_edge(UP, buff=0.2).to_edge(LEFT, buff=0.5))，为下方代码腾出空间。
-    #   code_obj (代码): 强制沉底 (.to_edge(DOWN, buff=0.2).to_edge(LEFT, buff=0.5))，位于文字下方。
-    #   main_group (动画): 锚定在 屏幕右侧居中 (.to_edge(RIGHT)), 占据右半边屏幕。
-    
-    if hasattr(self, 'code_obj'):
-         self.lecture.to_edge(UP, buff=0.2).to_edge(LEFT, buff=0.5)
-         self.code_obj.to_edge(DOWN, buff=0.2).to_edge(LEFT, buff=0.5)
-         self.main_group.to_edge(RIGHT)
+    # 左侧垂直布局 (从上到下):
+    # Layer 1: 标题 title -> to_edge(UP, buff=0.2)
+    # Layer 2: 讲解文字 lecture -> 标题下方, 高度限制 2.5 单位
+    # Layer 3: 代码 code_obj -> to_edge(DOWN, buff=0.3), 高度限制 3.0 单位
+    # 右侧: 动画区域 main_group -> to_edge(RIGHT, buff=0.3)
 
-         # Safety Scale Check (Overflow Protection)
-         max_width = 6.5
-         max_height = 7.5
-         
-         if self.main_group.width > max_width:
-             self.main_group.scale_to_fit_width(max_width)
-         
-         if self.main_group.height > max_height:
-             self.main_group.scale_to_fit_height(max_height)
-    else:
-         # No Code: Standard Layout -> Text Vertically Centered
-         self.lecture.to_edge(LEFT, buff=0.5).set_y(0)
-         self.main_group.to_edge(RIGHT)
+    # === 布局模板 ===
+    # 1. 标题固定顶部
+    title.to_edge(UP, buff=0.2)
+    
+    # 2. 讲解文字: 紧贴标题下方, 限制高度防止与代码重叠
+    self.lecture.next_to(title, DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
+    if self.lecture.height > 2.5:
+        self.lecture.scale_to_fit_height(2.5)
+    
+    # 3. 代码区域: 固定底部, 限制高度
+    code_obj.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
+    if code_obj.height > 3.0:
+        code_obj.scale_to_fit_height(3.0)
+    
+    # 4. 确保讲解与代码不重叠 (最小间距 0.5)
+    if self.lecture.get_bottom()[1] < code_obj.get_top()[1] + 0.5:
+        self.lecture.scale(0.8)  # 缩小讲解文字
     ```
-    - **字体与可视性 (Visibility & Fonts)**:
-      - **动画文字增强**: 所有位于 `main_group` (右侧动画) 内部的 `Text`/`MathTex`，字号必须 **加大一级** (Scale up by 1.2x or 1.5x)，确保在右侧区域清晰可见。
-      - **代码高亮**: `code_obj` 必须启用语法高亮，背景尽量透明或深色适配，确保在左下角清晰。
-      - **代码语言**: 代码示例必须使用 **{lang_desc['name']}** 语法。
+
+    **【代码注释必须用中文】算法代码中的注释必须使用中文，并指定中文字体：**
+    ```python
+    # ✅ 正确: 中文注释 + 中文字体
+    code_text = '''# 二分查找算法
+def binary_search(nums, target):
+    low = 0  # 左边界
+    high = len(nums) - 1  # 右边界'''
+    
+    code_obj = Code(
+        code=code_text,
+        language="python",
+        font="Noto Sans Mono CJK SC",  # 支持中文的等宽字体
+        background="rectangle",
+        font_size=16
+    )
+    
+    # ❌ 错误: 英文注释
+    code_text = '''# Binary search algorithm
+def binary_search(nums, target):'''
+    ```
+
+    **【代码高亮框精确定位】使用 code_obj[2] 访问代码行 VGroup：**
+    ```python
+    # Manim Code对象结构: code_obj[0]=背景, code_obj[1]=行号, code_obj[2]=代码行VGroup
+    code_lines = code_obj[2]  # 获取代码行 VGroup
+    
+    # ✅ 正确: 对单行创建高亮框
+    highlight = SurroundingRectangle(code_lines[0], color=YELLOW, buff=0.05)
+    self.play(Create(highlight))
+    
+    # ✅ 正确: 移动高亮框到指定行 (使用 Transform 而非 move_to)
+    new_highlight = SurroundingRectangle(code_lines[2], color=YELLOW, buff=0.05)
+    self.play(Transform(highlight, new_highlight))
+    
+    # ❌ 错误: move_to 会导致位置偏移
+    # self.play(highlight.animate.move_to(code_lines[2]))
+    ```
+    
+    - **代码语言**: 代码示例必须使用 **{lang_desc['name']}** 语法。
 
     ### 2. 交互与逻辑表现 (Interaction & Logic)
-    - **代码高亮**: `self.play(Indicate(code_obj.code[line_idx]))`
+    - **代码高亮**: 使用 `SurroundingRectangle` 精确框选代码行，禁止用 `Indicate` 高亮代码块
     - **呼吸感时序 (Breathing Timing)**:
       - **关键规则**: 在 `self.play(Indicate(self.lecture))` (文字高亮) 结束之后，**必须强制插入** `self.wait(0.5)`。
       - **视线引导**: 先看左上文字 -> 停顿 0.5s -> 再看右侧动画或左下代码。严禁文字高亮与复杂动画同时开始。
@@ -143,19 +179,23 @@ def complex_algo(data):
             # Aux Data (e.g., Stack)
             stack_group = VGroup().to_edge(DOWN)
             
-            # 3. Execution Trace
-            # Step 1: Check
-            self.play(Indicate(code.code[1]))
+            # 3. Execution Trace with SurroundingRectangle
+            code_lines = code[2]  # 获取代码行 VGroup
+            
+            # Step 1: Create highlight box for code line
+            highlight = SurroundingRectangle(code_lines[1], color=YELLOW, buff=0.05)
+            self.play(Create(highlight))
             check_label = MathTex("Check: Is Valid?").next_to(array_group, DOWN)
             self.play(Write(check_label))
             
             # Step 2: Visual Feedback
-            self.play(array_group[0].animate.set_color(GREEN)) # Valid
+            self.play(array_group[0].animate.set_color(GREEN))
             self.play(FadeOut(check_label))
             
-            # Step 3: Optimization phase
-            self.play(Indicate(code.code[2]))
-            # Show optimization effect (e.g., merge nodes)
+            # Step 3: Move highlight to next line (使用 Transform)
+            new_highlight = SurroundingRectangle(code_lines[2], color=YELLOW, buff=0.05)
+            self.play(Transform(highlight, new_highlight))
+            # Show optimization effect
             self.play(ReplacementTransform(array_group[0], array_group[1]))
             
             self.wait(2)
@@ -167,10 +207,18 @@ def complex_algo(data):
 - 不要在动画中改变左侧 lecture_lines 的位置或大小，只改变颜色。
 
 7. **Anti-Occlusion Rules (防遮挡规则)**:
-- **Rule 1: Text Width Safety**: 所有 Text, Paragraph, MathTex 对象必须设置 max_width (例如 max_width=config.frame_width * 0.6) 或使用 .scale_to_fit_width()，防止文字溢出屏幕。
-- **Rule 2: Background Protection**: 对于可能覆盖在网格、线条或复杂图形上的文字（Labels），必须使用 .add_background_rectangle(color=BLACK, opacity=0.8)，确保文字清晰可读。
-- **Rule 3: Collision Avoidance**: 在布局 VGroup 时，必须使用 buff 参数（如 .arrange(DOWN, buff=0.5)）预留足够的呼吸空间。
-- **Rule 4: Subtitle Fixed Position**: 解释性文字（Lecture Lines）通常使用 .to_edge(DOWN, buff=1.0) 固定在底部，不要让它随物体移动。
+- **Rule 1: 宽度安全** - Text/MathTex 必须设置 `max_width=5` 或 `.scale_to_fit_width()`
+- **Rule 2: 背景保护** - 叠加在图形上的标签必须 `.add_background_rectangle(color=BLACK, opacity=0.8)`
+- **Rule 3: 间距预留** - VGroup 使用 `.arrange(DOWN, buff=0.5)` 保持呼吸感
+- **Rule 4: 智能清理** - **在新元素出现前，若旧元素会被遮挡且后续不再使用，先 `FadeOut` 清除它：**
+  ```python
+  # ✅ 正确: 新元素出现前清理会被遮挡且无用的旧元素
+  self.play(FadeOut(old_label))  # old_label 后续不再需要+会被新元素遮挡
+  self.play(FadeIn(new_element))  # 新元素安全出现
+  
+  # ❌ 错误: 直接叠加导致遮挡
+  self.play(FadeIn(new_element))  # new_element 盖住 old_label
+  ```
 """
 
 

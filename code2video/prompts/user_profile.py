@@ -26,6 +26,7 @@ class ProgrammingLanguage(Enum):
     """编程语言"""
     PYTHON = "Python"
     JAVA = "Java"
+    C = "C"
     CPP = "C++"
     JAVASCRIPT = "JavaScript"
     GO = "Go"
@@ -121,6 +122,12 @@ class UserProfile:
                 "style": "面向对象风格，使用类封装",
                 "features": "使用Java集合框架（ArrayList, HashMap, PriorityQueue）",
                 "syntax_notes": "明确声明类型，遵循Java命名规范"
+            },
+            ProgrammingLanguage.C: {
+                "name": "C",
+                "style": "简洁高效的过程式编程风格",
+                "features": "使用指针和数组操作，手动内存管理（malloc/free）",
+                "syntax_notes": "注意指针运算和内存安全，使用结构体组织数据"
             },
             ProgrammingLanguage.CPP: {
                 "name": "C++",
@@ -238,6 +245,7 @@ def create_profile(
     lang_mapping = {
         "python": ProgrammingLanguage.PYTHON,
         "java": ProgrammingLanguage.JAVA,
+        "c": ProgrammingLanguage.C,
         "c++": ProgrammingLanguage.CPP,
         "cpp": ProgrammingLanguage.CPP,
         "javascript": ProgrammingLanguage.JAVASCRIPT,
