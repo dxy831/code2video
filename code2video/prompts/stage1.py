@@ -24,10 +24,7 @@ def get_prompt1_outline(
     if user_profile is None:
         user_profile = get_default_profile()
     
-    # 获取用户配置的提示词片段
-    profile_prompt = user_profile.generate_profile_prompt()
-    
-    # 获取具体的配置描述
+    # 只获取必要的描述，移除 profile_prompt 调用以减少重复
     age_desc = user_profile.get_age_group_description()
     diff_desc = user_profile.get_difficulty_description()
     lang_desc = user_profile.get_language_description()
@@ -38,9 +35,7 @@ def get_prompt1_outline(
     目标算法: "{knowledge_point}"
     要求视频总时长：至少 {duration} 分钟。
     
-    {profile_prompt}
-    
-    ## 根据用户配置的特别要求
+    ## 用户配置
     
     ### 受众适配要求
     - 你的目标观众是 **{age_desc['audience']}**，他们的背景是：{age_desc['background']}

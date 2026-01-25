@@ -23,10 +23,7 @@ def get_prompt2_storyboard(
     if user_profile is None:
         user_profile = get_default_profile()
     
-    # 获取用户配置的提示词片段
-    profile_prompt = user_profile.generate_profile_prompt()
-    
-    # 获取具体的配置描述
+    # 只获取必要的描述，移除 profile_prompt 调用以减少重复
     age_desc = user_profile.get_age_group_description()
     diff_desc = user_profile.get_difficulty_description()
     lang_desc = user_profile.get_language_description()
@@ -34,9 +31,7 @@ def get_prompt2_storyboard(
     base_prompt = f""" 
     你是一位**硬核算法可视化导演**。请将大纲转化为详细的 Manim 动画脚本。
 
-    {profile_prompt}
-
-    ## 根据用户配置的动画风格要求
+    ## 用户配置
 
     ### 受众适配
     - 目标观众：**{age_desc['audience']}**

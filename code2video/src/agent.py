@@ -336,8 +336,15 @@ class TeachingVideoAgent:
             print(f"⚠️ 素材下载失败，使用原始分镜: {e}")
             return storyboard_data
 
-    def generate_section_code(self, section: Section, attempt: int = 1, feedback_improvements=None) -> str:
-        """Generate Manim code for a single section"""
+    def generate_section_code(self, section: Section, attempt: int = 1, feedback_improvements=None, error_message: str = None) -> str:
+        """Generate Manim code for a single section
+        
+        Args:
+            section: 章节对象
+            attempt: 当前尝试次数
+            feedback_improvements: MLLM 反馈的改进建议（效果不佳时）
+            error_message: 上次运行失败的错误信息（运行失败时）
+        """
         code_file = self.output_dir / f"{section.id}.py"
 
         if attempt == 1 and code_file.exists() and not feedback_improvements:
@@ -349,7 +356,12 @@ class TeachingVideoAgent:
         # print(f"💻 正在为 {section.id} 生成 Manim 代码 (尝试 {attempt}/{self.max_regenerate_tries})...")
         regenerate_note = ""
         if attempt > 1:
-            regenerate_note = get_regenerate_note(attempt, MAX_REGENERATE_TRIES=self.max_regenerate_tries)
+            # 仅用于运行失败的情况
+            regenerate_note = get_regenerate_note(
+                attempt, 
+                MAX_REGENERATE_TRIES=self.max_regenerate_tries,
+                error_message=error_message
+            )
 
         # Add MLLM feedback and improvement suggestions
         if feedback_improvements:
@@ -404,8 +416,12 @@ class TeachingVideoAgent:
         self.section_codes[section.id] = code
         return code
 
-    def debug_and_fix_code(self, section_id: str, max_fix_attempts: int = 3) -> bool:
-        """Enhanced debug and fix code method"""
+    def debug_and_fix_code(self, section_id: str, max_fix_attempts: int = 3) -> Tuple[bool, Optional[str]]:
+        """Enhanced debug and fix code method
+        
+        Returns:
+            Tuple[bool, Optional[str]]: (成功与否, 最后一次错误信息)
+        """
         if section_id not in self.section_codes:
             code_file = self.output_dir / f"{section_id}.py"
             if code_file.exists():
@@ -413,7 +429,9 @@ class TeachingVideoAgent:
                 with open(code_file, "r", encoding="utf-8") as f:
                     self.section_codes[section_id] = f.read()
             else:
-                return False
+                return False, "代码文件不存在"
+        
+        last_error = None  # 保存最后一次错误信息
 
         # 动态解析 Scene 名称，避免类名与默认推断不一致
         code_content_for_scene = self.section_codes.get(section_id, "")
@@ -445,7 +463,7 @@ class TeachingVideoAgent:
             if video_path.exists():
                 self.section_videos[section_id] = str(video_path)
                 print(f"✅ {self.learning_topic} {section_id} 发现已有视频，跳过渲染: {video_path}")
-                return True
+                return True, None  # 成功，无错误
 
         for fix_attempt in range(max_fix_attempts):
             print(f"🔧 {self.learning_topic} 正在调试 {section_id} (尝试 {fix_attempt + 1}/{max_fix_attempts})")
@@ -470,7 +488,10 @@ class TeachingVideoAgent:
                         if video_path.exists():
                             self.section_videos[section_id] = str(video_path)
                             print(f"✅ {self.learning_topic} {section_id} 完成")
-                            return True
+                            return True, None  # 成功，无错误
+                
+                # 保存错误信息
+                last_error = result.stderr
 
                 current_code = self.section_codes[section_id]
                 fixed_code = self.scope_refine_fixer.fix_code_smart(section_id, current_code, result.stderr, self.output_dir)
@@ -483,13 +504,15 @@ class TeachingVideoAgent:
                     break
 
             except subprocess.TimeoutExpired:
+                last_error = "Manim 渲染超时 (超过 300 秒)"
                 print(f"❌ {self.learning_topic} {section_id} 超时")
                 break
             except Exception as e:
+                last_error = str(e)
                 print(f"❌ {self.learning_topic} {section_id} 失败，异常: {e}")
                 break
 
-        return False
+        return False, last_error
 
     def get_mllm_feedback(self, section: Section, video_path: str, round_number: int = 1) -> VideoFeedback:
         print(f"🤖 {self.learning_topic} 使用 MLLM 分析视频 ({round_number}/{self.feedback_rounds}): {section.id}")
@@ -585,7 +608,7 @@ class TeachingVideoAgent:
             self.generate_section_code(
                 section=section, attempt=attempt + 1, feedback_improvements=feedback.suggested_improvements
             )
-            success = self.debug_and_fix_code(section.id, max_fix_attempts=self.max_mllm_fix_bugs_tries)
+            success, _ = self.debug_and_fix_code(section.id, max_fix_attempts=self.max_mllm_fix_bugs_tries)
             
             if success:
                 optimized_output_dir = self.output_dir / "optimized_videos"
@@ -662,17 +685,19 @@ class TeachingVideoAgent:
 
         try:
             success = False
+            last_error = None  # 保存最后一次错误信息用于重试
             for regenerate_attempt in range(self.max_regenerate_tries):
                 # print(f"🎯 Processing {section_id} (regenerate attempt {regenerate_attempt + 1}/{self.max_regenerate_tries})")
                 try:
                     if regenerate_attempt > 0:
-                        self.generate_section_code(section, attempt=regenerate_attempt + 1)
-                    success = self.debug_and_fix_code(section_id, max_fix_attempts=self.max_fix_bug_tries)
+                        # 将上次的错误信息传递给代码生成，帮助 LLM 修复问题
+                        self.generate_section_code(section, attempt=regenerate_attempt + 1, error_message=last_error)
+                    success, last_error = self.debug_and_fix_code(section_id, max_fix_attempts=self.max_fix_bug_tries)
                     if success:
                         break
-                    else:
-                        pass
+                    # last_error 已经在 debug_and_fix_code 中更新
                 except Exception as e:
+                    last_error = str(e)
                     print(f"⚠️ {section_id} 第 {regenerate_attempt + 1} 次尝试抛出异常: {str(e)}")
                     continue
             if not success:
