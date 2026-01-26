@@ -81,7 +81,7 @@ def get_prompt3_code(
     # Layer 1: 标题 title -> to_edge(UP, buff=0.2)
     # Layer 2: 讲解文字 lecture -> 标题下方, 高度限制 2.5 单位
     # Layer 3: 代码 code_obj -> to_edge(DOWN, buff=0.3), 高度限制 3.0 单位
-    # 左侧区域: X ∈ [-7.0, 0], 右侧区域: X ∈ [0.5, 6.5]
+    # 左侧区域: X ∈ [-7.0, 0], 右侧区域: X ∈ [0.3, 6.5]
 
     # === 布局模板 ===
     LEFT_MAX_WIDTH = 6.5  # 左侧元素最大宽度，防止与右侧重叠
@@ -203,7 +203,14 @@ def algo(data):
     - 颜色使用明亮的 hex 颜色
     - 禁止 3D 场景，保持 2D 清晰图解
     - 讲解文字只改颜色，不改位置大小
-    - **右侧元素严禁超出屏幕边界**：所有右侧元素的 X 坐标必须 ≤ 6.5
+    - **⚠️ 右边界硬性限制（必须遵守）**：
+        - 右侧区域 X ∈ [0.3, 6.5]，宽度最大 6.2
+        - 创建元素后检查并缩放：
+          ```python
+          if obj.get_right()[0] > 6.5 or obj.get_left()[0] < 0.3:
+              obj.scale_to_fit_width(6.2).move_to([3.4, obj.get_center()[1], 0])
+          ```
+        - VGroup 的 arrange() 后必须检查并缩放
 
     ### 防遮挡规则
     - **宽度安全**: Text/MathTex 设置 `max_width=5` 或 `.scale_to_fit_width()`
