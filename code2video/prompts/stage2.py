@@ -81,8 +81,20 @@ def get_prompt2_storyboard(
         - 每一句旁白（Lecture Line）必须对应代码的解释。
         - 每一个动画（Animation）必须对应数据的变化（Create, Transform, FadeOut）。
         - **节奏控制**：根据难度"{diff_desc['level']}"，{diff_desc['visual_style']}
+    
+    4.  **时长规划 (Duration Planning)**:
+        - 每个 section 必须包含 `estimated_duration` 字段，单位为**秒**。
+        - 时长估算规则：
+          - 每句 lecture_line 约 3-5 秒（根据文字长度）
+          - 每个复杂动画约 2-4 秒
+          - 简单动画（FadeIn/FadeOut）约 0.5-1 秒
+          - 代码展示页面需要额外 3-5 秒供观众阅读
+        - 场景引入 (intro) 通常 30-60 秒
+        - 核心算法演示章节通常 45-90 秒
+        - 代码展示章节通常 20-40 秒
+        - **重要**：时长估算应保守，宁可多估不可少估，确保观众有足够时间理解
 
-    4.  **语言适配要求**:
+    5.  **语言适配要求**:
         - 所有代码示例必须使用 **{lang_desc['name']}**
         - 代码语法高亮应适配 {lang_desc['name']} 语法
         - 注释风格：{diff_desc['code_style']}
@@ -96,18 +108,38 @@ def get_prompt2_storyboard(
     {
         "sections": [
             {
-                "id": "section_id",
-                "title": "标题",
-                "lecture_lines": ["..."],
+                "id": "section_0_intro",
+                "title": "场景引入",
+                "estimated_duration": 45,
+                "lecture_lines": ["第一句旁白...", "第二句旁白..."],
                 "animations": [
-                    "Define Visual Layout: Split Right Area into Top (Graph) and Bottom (Priority Queue).",
-                    "Action: Highlight code line `heapq.heappush(pq, (0, start))`.",
-                    "Visual: Create a Circle labeled 'Start' in Graph. Create a small Square labeled '(0, S)' appearing in the Queue area.",
-                    "Monitor: Update text `Current Cost = 0`."
+                    "Define Visual Layout: Left-Right Split.",
+                    "Visual: FadeIn title at top.",
+                    "Visual: Create scene illustration.",
+                    "Animation: Transform to problem setup."
+                ]
+            },
+            {
+                "id": "section_1",
+                "title": "算法核心步骤",
+                "estimated_duration": 60,
+                "lecture_lines": ["讲解步骤1...", "讲解步骤2...", "讲解步骤3..."],
+                "animations": [
+                    "Define Visual Layout: Split-Left Layout for code demonstration.",
+                    "Code: ```python\\ndef algorithm():\\n    pass\\n```",
+                    "Action: Highlight code line.",
+                    "Visual: Create data structure visualization.",
+                    "Animation: Show state transition.",
+                    "Monitor: Update variable display."
                 ]
             }
         ]
     }
+    
+    **注意**：
+    - `estimated_duration` 是该节的预计时长（秒），必须为整数
+    - 时长要综合考虑 lecture_lines 数量、animations 复杂度、以及观众理解所需时间
+    - 所有章节时长之和应大致符合视频总时长要求
     """
     return base_prompt
 

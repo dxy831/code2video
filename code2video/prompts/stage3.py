@@ -7,7 +7,8 @@ def get_prompt3_code(
     regenerate_note: str,
     section,
     base_class: str,
-    user_profile: Optional[UserProfile] = None
+    user_profile: Optional[UserProfile] = None,
+    estimated_duration: Optional[int] = None
 ):
     """
     生成Manim代码的提示词
@@ -17,6 +18,7 @@ def get_prompt3_code(
         section: 章节信息对象
         base_class: 基类代码
         user_profile: 用户配置（年龄段、编程语言、难度），可选
+        estimated_duration: 该章节的预计时长（秒），可选
     
     Returns:
         完整的提示词字符串
@@ -30,10 +32,27 @@ def get_prompt3_code(
     diff_desc = user_profile.get_difficulty_description()
     lang_desc = user_profile.get_language_description()
     
+    # 生成时长指导说明
+    duration_guidance = ""
+    if estimated_duration:
+        duration_guidance = f"""
+    ### 时长控制要求
+    - **目标时长**: 本章节预计时长为 **{estimated_duration} 秒**
+    - **节奏分配建议**:
+        - 每句旁白约 3-5 秒（共 {len(section.lecture_lines)} 句，约 {len(section.lecture_lines) * 4} 秒）
+        - 剩余 {max(0, estimated_duration - len(section.lecture_lines) * 4)} 秒用于动画演示和停顿
+    - **wait() 使用指南**:
+        - 简单动画后：`self.wait(0.5)` 到 `self.wait(1)`
+        - 重要概念展示后：`self.wait(1.5)` 到 `self.wait(2)`
+        - 章节结束前：`self.wait(2)` 到 `self.wait(3)`
+    - **重要**: 确保动画总时长接近目标时长，不要过短也不要过长
+"""
+    
     return f"""
     你是一位精通 Manim 的 Python 专家。请编写代码生成一个**解释复杂算法执行逻辑**的视频片段。
 
     {regenerate_note}
+    {duration_guidance}
 
     ## 根据用户配置的代码生成要求
 
@@ -59,20 +78,26 @@ def get_prompt3_code(
     **【重要】左侧三层垂直布局，严禁重叠：**
     ```python
     # 左侧垂直布局 (从上到下):
-    # Layer 1: 标题 title -> to_edge(UP, buff=0.1)
+    # Layer 1: 标题 title -> to_edge(UP, buff=0.2)
     # Layer 2: 讲解文字 lecture -> 标题下方, 高度限制 2.5 单位
     # Layer 3: 代码 code_obj -> to_edge(DOWN, buff=0.3), 高度限制 3.0 单位
-    # 右侧: 动画区域
+    # 左侧区域: X ∈ [-7.0, 0], 右侧区域: X ∈ [0.5, 6.5]
 
     # === 布局模板 ===
-    title.to_edge(UP, buff=0.1)
-    self.lecture.next_to(title, DOWN, buff=0.15).to_edge(LEFT, buff=0.3)
+    LEFT_MAX_WIDTH = 6.5  # 左侧元素最大宽度，防止与右侧重叠
+    
+    title.to_edge(UP, buff=0.2)
+    self.lecture.next_to(title, DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
     if self.lecture.height > 2.5:
         self.lecture.scale_to_fit_height(2.5)
+    if self.lecture.width > LEFT_MAX_WIDTH:
+        self.lecture.scale_to_fit_width(LEFT_MAX_WIDTH)
     
     code_obj.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
     if code_obj.height > 3.0:
         code_obj.scale_to_fit_height(3.0)
+    if code_obj.width > LEFT_MAX_WIDTH:
+        code_obj.scale_to_fit_width(LEFT_MAX_WIDTH)
     
     # 确保讲解与代码不重叠
     if self.lecture.get_bottom()[1] < code_obj.get_top()[1] + 0.3:
@@ -80,15 +105,35 @@ def get_prompt3_code(
         code_obj.to_edge(DOWN, buff=0.3)
     ```
 
-    **【代码注释必须用中文】**
+    **【关键】右侧动画区域（严禁出框）：**
     ```python
+    # 右侧区域: 中心(3.5, -0.3), 最大宽6.0/高5.0
+    # Y范围: [-3.5, 2.5]，避免上下出框
+    RIGHT_CENTER = np.array([3.5, -0.3, 0])  # 稍微下移中心点
+    # 所有右侧元素：先 move_to(RIGHT_CENTER)，再检查尺寸
+    if obj.width > 6.0: obj.scale_to_fit_width(6.0)
+    if obj.height > 5.0: obj.scale_to_fit_height(5.0)
+    # 检查下边界：确保 obj.get_bottom()[1] >= -3.5
+    ```
+
+    **【代码注释必须用中文，防止乱码】**
+    ```python
+    # 方案1: 使用Windows自带黑体（推荐）
     code_obj = Code(
         code=code_text,
         language="{lang_desc['name'].lower()}",
-        font="Noto Sans Mono CJK SC",
+        font="SimHei",
         background="rectangle",
         font_size=16
     )
+    
+    # 方案2: 如果SimHei不可用，尝试其他中文字体
+    # font="Microsoft YaHei"  # 微软雅黑
+    # font="SimSun"  # 宋体
+    # font="KaiTi"  # 楷体
+    
+    # 【重要】Text对象也需要指定中文字体：
+    text = Text("中文文字", font="SimHei")
     ```
 
     **【代码高亮框精确定位】使用 code_obj[2] 访问代码行 VGroup：**
@@ -100,8 +145,6 @@ def get_prompt3_code(
     # ✅ 移动高亮框 (使用 Transform)
     new_highlight = SurroundingRectangle(code_lines[2], color=YELLOW, buff=0.05)
     self.play(Transform(highlight, new_highlight))
-    
-    # ❌ 禁用 move_to 和 Indicate
     ```
 
     ### 2. 交互与逻辑表现
@@ -137,7 +180,7 @@ def get_prompt3_code(
 def algo(data):
     # 核心逻辑
     pass\"\"\"
-            code = Code(code=code_raw, language="{lang_desc['name'].lower()}", font="Noto Sans Mono CJK SC")
+            code = Code(code=code_raw, language="{lang_desc['name'].lower()}", font="SimHei")
             code.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
             self.play(Create(code))
             
@@ -160,6 +203,7 @@ def algo(data):
     - 颜色使用明亮的 hex 颜色
     - 禁止 3D 场景，保持 2D 清晰图解
     - 讲解文字只改颜色，不改位置大小
+    - **右侧元素严禁超出屏幕边界**：所有右侧元素的 X 坐标必须 ≤ 6.5
 
     ### 防遮挡规则
     - **宽度安全**: Text/MathTex 设置 `max_width=5` 或 `.scale_to_fit_width()`

@@ -67,7 +67,7 @@ class UserProfile:
                 "audience": "职场开发者和技术从业者",
                 "background": "有丰富的工程经验，关注实际应用",
                 "style": "直击重点、注重实战和工程最佳实践",
-                "pace": "较快节奏，假设观众已具备基础知识",
+                "pace": "正常节奏，内容更精炼但动画速度保持舒适，确保观看体验",
                 "vocabulary": "使用行业标准术语，无需过多解释",
                 "examples": "使用真实业务场景、系统设计、性能优化案例",
                 "depth": "强调工程实现、边界情况处理、性能调优和生产环境注意事项"
@@ -103,7 +103,7 @@ class UserProfile:
                 "code_style": "展示多种实现方式，包括优化版本",
                 "examples_complexity": "使用复杂示例，展示极端情况和性能边界",
                 "skip_topics": "不跳过任何内容，全面深入讲解",
-                "visual_style": "动画紧凑高效，假设观众能快速理解"
+                "visual_style": "动画节奏正常，内容更丰富但保持舒适的观看速度"
             }
         }
         return descriptions.get(self.difficulty, descriptions[DifficultyLevel.MEDIUM])

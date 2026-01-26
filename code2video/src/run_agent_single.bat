@@ -19,13 +19,13 @@ set "FEEDBACK_ROUNDS=2"
 set "KNOWLEDGE_POINT=二分搜索"
 
 :: 目标受众年龄段: high_school(初高中生), college(大学/研究生), professional(职场人士)
-set "AGE_GROUP=professional"
+set "AGE_GROUP=high_school"
 
-:: 编程语言: Python, Java, C++, JavaScript, Go, Rust, C#, 伪代码
-set "PROGRAMMING_LANGUAGE=Java"
+:: 编程语言: Python, C, Java, C++, JavaScript, Go, Rust, C#, 伪代码
+set "PROGRAMMING_LANGUAGE=C"
 
 :: 难度级别: low(入门级), medium(进阶级), high(专家级)
-set "DIFFICULTY=high"
+set "DIFFICULTY=low"
 
 :: ========== 2) Execute ==========
 echo ==========================================

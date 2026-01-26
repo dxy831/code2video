@@ -3,11 +3,11 @@ class TeachingScene(Scene):
     def setup_layout(self, title_text, lecture_lines):
         # BASE
         self.camera.background_color = "#000000"
-        self.title = Text(title_text, font_size=28, color=WHITE).to_edge(UP)
+        self.title = Text(title_text, font_size=28, color=WHITE, font="SimHei").to_edge(UP)
         self.add(self.title)
 
         # Left-side lecture content (bullets with "-")
-        lecture_texts = [Text(line, font_size=22, color=WHITE) for line in lecture_lines]
+        lecture_texts = [Text(line, font_size=22, color=WHITE, font="SimHei") for line in lecture_lines]
         self.lecture = VGroup(*lecture_texts).arrange(DOWN, aligned_edge=LEFT).scale(0.8)
         self.lecture.to_edge(LEFT, buff=0.2)
         self.add(self.lecture)

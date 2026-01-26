@@ -39,6 +39,7 @@ class Section:
     title: str
     lecture_lines: List[str]
     animations: List[str]
+    estimated_duration: Optional[int] = None  # 预计时长（秒）
 
 
 @dataclass
@@ -309,6 +310,7 @@ class TeachingVideoAgent:
                 title=section_data["title"],
                 lecture_lines=section_data.get("lecture_lines", []),
                 animations=section_data["animations"],
+                estimated_duration=section_data.get("estimated_duration"),  # 解析预计时长
             )
             self.sections.append(section)
 
@@ -386,7 +388,8 @@ class TeachingVideoAgent:
                 regenerate_note=regenerate_note, 
                 section=section, 
                 base_class=base_class,
-                user_profile=self.user_profile
+                user_profile=self.user_profile,
+                estimated_duration=section.estimated_duration  # 传递预计时长
             )
 
         response = self._request_api_and_track_tokens(code_gen_prompt, max_tokens=self.max_code_token_length)
@@ -1047,7 +1050,7 @@ def build_and_parse_args():
     parser.add_argument(
         "--programming_language",
         type=str,
-        choices=["Python", "Java", "C++", "JavaScript", "Go", "Rust", "C#", "伪代码"],
+        choices=["Python", "Java", "C", "C++", "JavaScript", "Go", "Rust", "C#", "伪代码"],
         default="Python",
         help="代码示例使用的编程语言"
     )
