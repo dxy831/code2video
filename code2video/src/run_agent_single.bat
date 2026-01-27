@@ -22,7 +22,7 @@ set "KNOWLEDGE_POINT=二分搜索"
 set "AGE_GROUP=high_school"
 
 :: 编程语言: Python, C, Java, C++, JavaScript, Go, Rust, C#, 伪代码
-set "PROGRAMMING_LANGUAGE=C"
+set "PROGRAMMING_LANGUAGE=Python"
 
 :: 难度级别: low(入门级), medium(进阶级), high(专家级)
 set "DIFFICULTY=low"

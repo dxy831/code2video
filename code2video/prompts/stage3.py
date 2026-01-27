@@ -45,7 +45,7 @@ def get_prompt3_code(
         - 简单动画后：`self.wait(0.5)` 到 `self.wait(1)`
         - 重要概念展示后：`self.wait(1.5)` 到 `self.wait(2)`
         - 章节结束前：`self.wait(2)` 到 `self.wait(3)`
-    - **重要**: 确保动画总时长接近目标时长，不要过短也不要过长
+    - **⚠️ 必须严格遵守**: 确保动画总时长接近目标时长 **{estimated_duration} 秒**，严禁过短！
 """
     
     return f"""
@@ -80,22 +80,24 @@ def get_prompt3_code(
     # 左侧垂直布局 (从上到下):
     # Layer 1: 标题 title -> to_edge(UP, buff=0.2)
     # Layer 2: 讲解文字 lecture -> 标题下方, 高度限制 2.5 单位
-    # Layer 3: 代码 code_obj -> to_edge(DOWN, buff=0.3), 高度限制 3.0 单位
+    # Layer 3: 代码 code_obj -> to_edge(DOWN, buff=0.2), 高度限制 3.5 单位
     # 左侧区域: X ∈ [-7.0, 0], 右侧区域: X ∈ [0.3, 6.5]
 
     # === 布局模板 ===
     LEFT_MAX_WIDTH = 6.5  # 左侧元素最大宽度，防止与右侧重叠
     
     title.to_edge(UP, buff=0.2)
-    self.lecture.next_to(title, DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
+    # ⚠️ 讲解文字从左上角开始，严禁Y轴居中
+    self.lecture.next_to(title, DOWN, buff=1.0).to_edge(LEFT, buff=0.3)
+    
     if self.lecture.height > 2.5:
         self.lecture.scale_to_fit_height(2.5)
     if self.lecture.width > LEFT_MAX_WIDTH:
         self.lecture.scale_to_fit_width(LEFT_MAX_WIDTH)
     
-    code_obj.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
-    if code_obj.height > 3.0:
-        code_obj.scale_to_fit_height(3.0)
+    code_obj.to_edge(DOWN, buff=0.2).to_edge(LEFT, buff=0.3)
+    if code_obj.height > 3.5:
+        code_obj.scale_to_fit_height(3.5)
     if code_obj.width > LEFT_MAX_WIDTH:
         code_obj.scale_to_fit_width(LEFT_MAX_WIDTH)
     
@@ -105,36 +107,56 @@ def get_prompt3_code(
         code_obj.to_edge(DOWN, buff=0.3)
     ```
 
-    **【关键】右侧动画区域（严禁出框）：**
+    **【⚠️ 讲解文字分批显示 - 硬性规则】**
+    - **每批最多4行**：屏幕上同时显示的讲解文字行数 **≤4**，严禁超过
+    - **按语义分组**：优先按语义完整性分组（如3+3而非4+2），但单组不超过4行
+    - **左上对齐**：讲解文字必须 `.next_to(title, DOWN, buff=0.5).to_edge(LEFT, buff=0.3)`，从**左上角**开始，**严禁Y轴居中**
+    - **位置固定**：首批出现时记录 `lecture_pos = self.lecture.get_corner(UL)`，后续批次用 `.align_to(lecture_pos, UL)` 保持左上对齐
+    - **切换方式**：当前批次讲完 → `FadeOut` + `self.remove()` → 新批次在**原位置左上对齐**显示
+    - **示例**：7行文字 → 按语义分为[1-3行] + [4-7行]，或[1-4行] + [5-7行]
+
+    **【关键】右侧动画区域（严禁出框，必须在标题下方）：**
     ```python
-    # 右侧区域: 中心(3.5, -0.3), 最大宽6.0/高5.0
-    # Y范围: [-3.5, 2.5]，避免上下出框
-    RIGHT_CENTER = np.array([3.5, -0.3, 0])  # 稍微下移中心点
-    # 所有右侧元素：先 move_to(RIGHT_CENTER)，再检查尺寸
+    # 右侧区域: 中心(3.5, -0.5), 最大宽6.0/高5.5
+    # ⚠️ Y范围: [-3.5, 3.0]，上边界必须在标题下方（标题在 Y≈3.5）
+    RIGHT_CENTER = np.array([3.5, -0.5, 0])  # 中心点下移，避免与标题重叠
+    RIGHT_TOP_Y = 3.0    # 右侧区域上边界（在标题下方）
+    RIGHT_BOTTOM_Y = -3.5  # 右侧区域下边界
+    
+    # 所有右侧元素：先 move_to(RIGHT_CENTER)，再检查尺寸和边界
     if obj.width > 6.0: obj.scale_to_fit_width(6.0)
-    if obj.height > 5.0: obj.scale_to_fit_height(5.0)
-    # 检查下边界：确保 obj.get_bottom()[1] >= -3.5
+    if obj.height > 5.5: obj.scale_to_fit_height(5.5)
+    
+    # ⚠️ 检查上下边界
+    if obj.get_top()[1] > RIGHT_TOP_Y:
+        obj.shift(DOWN * (obj.get_top()[1] - RIGHT_TOP_Y + 0.2))
+    if obj.get_bottom()[1] < RIGHT_BOTTOM_Y:
+        obj.shift(UP * (RIGHT_BOTTOM_Y - obj.get_bottom()[1] + 0.2))
     ```
 
-    **【代码注释必须用中文，防止乱码】**
+    **【代码展示 - 必须使用 Code 对象 + 浅色背景 】**
+    ⚠️ **严禁用 Text() 显示代码！必须使用 Code() 对象**
+    
     ```python
-    # 方案1: 使用Windows自带黑体（推荐）
+    # ⚠️⚠️⚠️ 【必须设置 background_config 实现浅色背景！】⚠️⚠️⚠️
+    # ⚠️⚠️⚠️ 【必须使用特定的 tango 浅色语法高亮主题！】⚠️⚠️⚠️
     code_obj = Code(
-        code=code_text,
+        code_string=code_text,           # 使用 code_string 而不是 code
         language="{lang_desc['name'].lower()}",
-        font="SimHei",
         background="rectangle",
-        font_size=16
+        formatter_style="tango",         # ⭐⭐⭐ 关键！指定的唯一语法高亮主题 ⭐⭐⭐
+        background_config={{              # ⭐⭐⭐ 关键！自定义浅色背景 ⭐⭐⭐
+            "fill_color": "#fff7e8",     # 浅金色背景
+            "stroke_color": "#e4c8a6",   # 金色边框
+            "stroke_width": 2
+        }}
     )
-    
-    # 方案2: 如果SimHei不可用，尝试其他中文字体
-    # font="Microsoft YaHei"  # 微软雅黑
-    # font="SimSun"  # 宋体
-    # font="KaiTi"  # 楷体
-    
-    # 【重要】Text对象也需要指定中文字体：
-    text = Text("中文文字", font="SimHei")
+    # ❌ 错误示例（没有 background_config 和 tango，会是深色背景和错误的语法高亮）：
+    # code_obj = Code(code_string=code_text, language="python", background="rectangle")
     ```
+    
+    **【代码注释规则 - 必须使用中文】**
+    - **代码注释必须全部使用中文**，方便观众理解
 
     **【代码高亮框精确定位】使用 code_obj[2] 访问代码行 VGroup：**
     ```python
@@ -157,6 +179,7 @@ def get_prompt3_code(
     - **Array/DP Table**: `VGroup` of `Square`，必须标 Index
     - **Tree/Graph**: `Graph` 类或 `Circle` + `Line`
     - **Pointer**: `Arrow` 指向当前操作对象
+    - 禁止 3D 场景，保持 2D 清晰图解
 
     ### 任务输入
     - 标题: {section.title}
@@ -180,7 +203,12 @@ def get_prompt3_code(
 def algo(data):
     # 核心逻辑
     pass\"\"\"
-            code = Code(code=code_raw, language="{lang_desc['name'].lower()}", font="SimHei")
+            code = Code(
+                code_string=code_raw, 
+                language="{lang_desc['name'].lower()}", 
+                formatter_style="tango",
+                background_config={{"fill_color": "#fff7e8", "stroke_color": "#e4c8a6", "stroke_width": 2}},
+            )
             code.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
             self.play(Create(code))
             
@@ -199,10 +227,81 @@ def algo(data):
             self.wait(2)
     ```
 
-    ### 强制约束
-    - 颜色使用明亮的 hex 颜色
-    - 禁止 3D 场景，保持 2D 清晰图解
-    - 讲解文字只改颜色，不改位置大小
+    ### 强制约束 - 字体与配色
+    **【字体规则】** 所有 `Text()` 必须使用 `font="Noto Sans SC"`（跨平台中文字体）
+    ```python
+    # ✅ 正确示例
+    Text("标题文字", font="Noto Sans SC", font_size=28, color="#BE8944", weight="BOLD")
+    Text("讲解文字", font="Noto Sans SC", font_size=25, color="#2C1608")
+    ```
+    
+    **【⚠️ 数学符号处理 - 混合 Text + MathTex】**
+    Noto Sans SC 不支持数学符号（如 `×`、`₂`、`≤` 等），必须混合使用 Text 和 MathTex：
+    ```python
+    # ✅ 正确：中文用 Text，数学符号用 MathTex
+    line = VGroup(
+        Text("- 时间复杂度是 ", font="Noto Sans SC", font_size=25, color="#2C1608"),
+        MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8),
+    ).arrange(RIGHT, buff=0.1)
+    
+    # ✅ 正确：乘号用 MathTex
+    line = VGroup(
+        Text("- 100个元素最多7次，", font="Noto Sans SC", font_size=25, color="#2C1608"),
+        MathTex(r"\\times", color="#2C1608").scale(0.8),
+        Text(" 1000个最多10次", font="Noto Sans SC", font_size=25, color="#2C1608"),
+    ).arrange(RIGHT, buff=0.1)
+    
+    # ❌ 错误：直接在 Text 中使用数学符号会显示为方框
+    # Text("时间复杂度是 O(log₂n)")  # ₂ 无法显示！
+    # Text("100 × 10 = 1000")        # × 无法显示！
+    ```
+    
+    **【需要用 MathTex 的符号清单】**
+    | 符号类型 | 常见符号 | MathTex 写法 |
+    |---------|---------|-------------|
+    | 下标 | ₂, ₃, ₙ | `r"_2"`, `r"_3"`, `r"_n"` |
+    | 上标 | ², ³, ⁿ | `r"^2"`, `r"^3"`, `r"^n"` |
+    | 运算符 | ×, ÷, ±, ≤, ≥, ≠ | `r"\\times"`, `r"\\div"`, `r"\\pm"`, `r"\\leq"`, `r"\\geq"`, `r"\\neq"` |
+    | 对数 | log₂ | `r"\\log_2"` |
+    | 希腊字母 | α, β, θ | `r"\\alpha"`, `r"\\beta"`, `r"\\theta"` |
+    | 箭头 | →, ← | `r"\\rightarrow"`, `r"\\leftarrow"` |
+    | 无穷 | ∞ | `r"\\infty"` |
+    | **勾/叉** | ✓, ✗ | `r"\\checkmark"` (绿勾), `r"\\times"` (红叉) |
+    
+    **【勾和叉的正确用法】**
+    ```python
+    # ✅ 正确：用 MathTex 显示勾和叉
+    correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)  # 绿色勾
+    wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)        # 红色叉
+    
+    # ❌ 错误：直接在 Text 中使用会显示方框
+    # Text("✗", font="Noto Sans SC")  # 无法显示！
+    ```
+    
+    **【配色表】** `背景颜色: #FFFDF4` 【奶油白色背景，严禁使用纯黑背景】
+    | 语义 | 文字色 | 背景色 | 边框色 | 样式 |
+    |------|--------|--------|--------|------|
+    | 普通文字 | #2C1608 | - | - | 普通 |
+    | 大标题 | #BE8944 | - | - | **加粗 weight="BOLD"** |
+    | 重要概念 | #9B6D0B | #FAECD2 | #f2cf7f | - |
+    | 警告/错误 | #C84A2B | #FBDDD6 | #f4b1a1 | - |
+    | 强调/高亮 | #C35101 | #FDDFCA | #f7bc93 | - |
+    | 提示/信息 | #1A7F99 | #ecf6fa | #bde0ee | - |
+    | 成功/正确 | #478211 | #effce3 | #c7e7aa | - |
+    | 代码块 | - | #fff7e8 | #e4c8a6 | **必须用 tango + background_config** |
+    
+    **【配色原则】**
+    - 每个场景最多 3-4 种强调色，确保整体和谐
+    - 讲解文字讲到对应句子时只改变颜色，不改位置大小
+    - 小框标题用语义色（成功框用绿、错误框用红），不允许使用大标题色
+    - 顶部的大标题颜色必须为 #BE8944，且必须加粗
+    - 边框色与标题色配套
+    - 代码块必须使用指定的浅色背景和 tango 语法高亮主题，不能使用默认的深色主题和其余语法高亮主题
+    - 禁止使用纯白/纯黑的文字，禁止调色板外颜色
+
+
+    ### 防遮挡规则
+    - **宽度安全**: Text/MathTex 设置 `max_width=5` 或 `.scale_to_fit_width()`
     - **⚠️ 右边界硬性限制（必须遵守）**：
         - 右侧区域 X ∈ [0.3, 6.5]，宽度最大 6.2
         - 创建元素后检查并缩放：
@@ -211,12 +310,9 @@ def algo(data):
               obj.scale_to_fit_width(6.2).move_to([3.4, obj.get_center()[1], 0])
           ```
         - VGroup 的 arrange() 后必须检查并缩放
-
-    ### 防遮挡规则
-    - **宽度安全**: Text/MathTex 设置 `max_width=5` 或 `.scale_to_fit_width()`
     - **背景保护**: 叠加标签加 `.add_background_rectangle(color=BLACK, opacity=0.8)`
     - **间距预留**: VGroup 使用 `.arrange(DOWN, buff=0.5)`
-    - **智能清理**: 新元素出现前，若旧元素会被遮挡且不再使用，先 `FadeOut`
+    - **智能清理**: 新元素出现前，若旧元素会被遮挡且不再使用，先 `FadeOut` 后必须 `self.remove(obj)` 彻底移除
 """
 
 

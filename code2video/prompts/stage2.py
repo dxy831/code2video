@@ -63,7 +63,7 @@ def get_prompt2_storyboard(
             - **分页**: 如果代码超过 20 行，必须拆分为连续的子场景 (Sub-scenes, e.g., `Scene 12.1`, `Scene 12.2`)。
 
         - **强制分页规则 (Pagination Protocol)**:
-          - **文字量控制**: 单页讲解文字不得超过 **3行**。
+          - **文字量控制**: 单页讲解文字不得超过 **4行**。
           - **代码量控制**: 如果代码过长导致左下区域放不下，**必须**将内容拆分为连续的子场景。宁可多页，不可字小。
         - **State Monitor (底部/角落)**: 实时显示的变量值（Cost, Index, True/False）。
         - **Text Zoning Strategy (文本分区策略)**:
