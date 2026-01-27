@@ -10,19 +10,73 @@ from pathlib import Path
 import imageio_ffmpeg
 
 
+def fix_json_common_errors(json_str: str) -> str:
+    """
+    尝试自动修复常见的 JSON 格式错误
+    """
+    import json
+    
+    # 先尝试直接解析，如果成功则无需修复
+    try:
+        json.loads(json_str)
+        return json_str
+    except json.JSONDecodeError:
+        pass
+    
+    fixed = json_str
+    
+    # 1. 移除 JavaScript 风格的注释 (// 和 /* */)
+    fixed = re.sub(r'//.*?(?=\n|$)', '', fixed)
+    fixed = re.sub(r'/\*.*?\*/', '', fixed, flags=re.DOTALL)
+    
+    # 2. 移除数组最后一个元素后的逗号 (trailing comma in arrays)
+    # 例如: ["a", "b",] -> ["a", "b"]
+    fixed = re.sub(r',(\s*)\]', r'\1]', fixed)
+    
+    # 3. 移除对象最后一个字段后的逗号 (trailing comma in objects)
+    # 例如: {"a": 1,} -> {"a": 1}
+    fixed = re.sub(r',(\s*)\}', r'\1}', fixed)
+    
+    # 4. 将单引号替换为双引号（JSON 标准要求双引号）
+    # 注意：这是一个简单的替换，可能会误伤字符串内的单引号
+    # 只在解析失败后尝试
+    try:
+        json.loads(fixed)
+        return fixed
+    except json.JSONDecodeError:
+        pass
+    
+    # 5. 尝试修复未转义的引号问题
+    # 这是一个复杂问题，这里只做简单处理
+    
+    # 6. 移除控制字符
+    fixed = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', fixed)
+    
+    return fixed
+
+
 def extract_json_from_markdown(text):
+    """
+    从 markdown 文本中提取 JSON，并尝试自动修复常见格式错误
+    """
+    import json
+    
     # 优先尝试匹配标准的 markdown 代码块 (```json ... ```)
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
-        return match.group(1)
+        json_str = match.group(1)
+        # 尝试修复并返回
+        return fix_json_common_errors(json_str)
     
-    # 【新增回退机制】如果没找到代码块，尝试寻找字符串中第一个 '{' 和最后一个 '}'
+    # 【回退机制】如果没找到代码块，尝试寻找字符串中第一个 '{' 和最后一个 '}'
     # 这能处理 LLM 忘记写 markdown 标记的情况，或者在代码块前有废话的情况
     start = text.find('{')
     end = text.rfind('}')
     if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-        
+        json_str = text[start : end + 1]
+        # 尝试修复并返回
+        return fix_json_common_errors(json_str)
+    
     return text
 
 

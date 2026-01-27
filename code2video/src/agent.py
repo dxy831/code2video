@@ -20,6 +20,7 @@ import time
 import random
 import subprocess
 import shutil
+import pathlib
 from typing import List, Dict, Any, Optional, Tuple, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +28,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExec
 
 from gpt_request import *
 from prompts import *
-from prompts.user_profile import UserProfile, AgeGroup, DifficultyLevel, ProgrammingLanguage, get_default_profile, create_profile
+from prompts.user_profile import UserProfile, get_default_profile, create_profile_from_text, parse_profile_with_ai_sync
 from utils import *
 from scope_refine import *
 from external_assets import process_storyboard_with_assets
@@ -1039,27 +1040,12 @@ def build_and_parse_args():
     # 新增参数：最大并行工作进程数
     parser.add_argument("--max_workers", type=int, default=None, help="Force specific number of workers, overriding auto-detection")
 
-    # 用户个性化配置参数
+    # 用户个性化配置参数 - 新的自然语言描述方式
     parser.add_argument(
-        "--age_group",
+        "--user_profile",
         type=str,
-        choices=["high_school", "college", "professional"],
-        default="college",
-        help="目标受众年龄段: high_school(初高中生), college(大学/研究生), professional(职场人士)"
-    )
-    parser.add_argument(
-        "--programming_language",
-        type=str,
-        choices=["Python", "Java", "C", "C++", "JavaScript", "Go", "Rust", "C#", "伪代码"],
-        default="Python",
-        help="代码示例使用的编程语言"
-    )
-    parser.add_argument(
-        "--difficulty",
-        type=str,
-        choices=["low", "medium", "high"],
-        default="medium",
-        help="内容难度级别: low(入门级), medium(进阶级), high(专家级)"
+        default="",
+        help="用户画像的自然语言描述，例如：'我是17岁的高中生，想要的学习难度是入门级，选择的编程语言是Python，目标是利用暑假成功入门Python'"
     )
 
     return parser.parse_args()
@@ -1094,12 +1080,33 @@ if __name__ == "__main__":
         raise ValueError("必须提供 --knowledge_point 或 --knowledge_file")
 
     # 创建用户个性化配置
-    user_profile = create_profile(
-        age_group=args.age_group,
-        programming_language=args.programming_language,
-        difficulty=args.difficulty
-    )
-    print(f"📋 用户配置: 年龄段={args.age_group}, 编程语言={args.programming_language}, 难度={args.difficulty}")
+    if args.user_profile:
+        print(f"🧠 正在使用 AI 解析用户画像...")
+        print(f"📝 用户输入: {args.user_profile}")
+        
+        # 先创建基础的用户配置
+        user_profile = create_profile_from_text(args.user_profile)
+        
+        # 使用 AI 解析用户画像
+        parsed_profile = parse_profile_with_ai_sync(args.user_profile, api)
+        
+        if parsed_profile:
+            user_profile.update_with_parsed_profile(parsed_profile)
+            print(f"✅ AI 解析成功！")
+            
+            # 打印解析结果摘要
+            summary = parsed_profile.get("user_summary", {})
+            print(f"📋 解析结果:")
+            print(f"   - 年龄段: {summary.get('age_group', '未知')}")
+            print(f"   - 知识背景: {summary.get('background', '未知')}")
+            print(f"   - 学习目标: {summary.get('learning_goal', '未知')}")
+            print(f"   - 编程语言: {summary.get('target_language', 'Python')}")
+            print(f"   - 难度偏好: {summary.get('difficulty_preference', '中等')}")
+        else:
+            print(f"⚠️ AI 解析失败，使用默认解析结果")
+    else:
+        print(f"📋 未提供用户画像，使用默认配置")
+        user_profile = get_default_profile()
 
     cfg = RunConfig(
         api=api,
