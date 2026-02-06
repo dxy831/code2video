@@ -1,265 +1,412 @@
 """
 用户个性化配置模块
-支持根据不同年龄段、编程语言、难度级别生成定制化的视频内容
+支持通过自然语言描述生成定制化的视频内容
 """
 
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from typing import Optional, Dict, Any, Callable
 
 
-class AgeGroup(Enum):
-    """年龄段分类"""
-    HIGH_SCHOOL = "high_school"      # 初高中学生
-    COLLEGE = "college"              # 大学/研究生
-    PROFESSIONAL = "professional"    # 工作后的人
+# ============ AI 解析用户画像的提示词 ============
+
+def get_profile_analysis_prompt(user_profile_text: str) -> str:
+    """
+    生成让 AI 解析用户画像文本的提示词
+    
+    Args:
+        user_profile_text: 用户输入的自然语言描述
+        
+    Returns:
+        让 AI 分析用户画像的提示词
+    """
+    return f"""
+你是一位教育视频制作专家。请分析以下用户画像描述，并提取关键信息，生成针对教学视频制作的详细指导。
+
+## 用户输入的画像描述
+{user_profile_text}
+
+## 请从以下维度分析并输出 JSON 格式
+
+请严格按照以下 JSON 格式输出，不要添加任何其他文字：
+
+{{
+    "user_summary": {{
+        "age_group": "从描述中推断的年龄段（如：高中生/大学生/研究生/职场人士）",
+        "background": "推断的知识背景和已有储备",
+        "learning_goal": "用户的学习目标",
+        "target_language": "用户选择的编程语言（如未指定则默认Python）",
+        "difficulty_preference": "用户期望的难度（入门/进阶/专家）"
+    }},
+    "stage1_outline_guidance": {{
+        "audience_description": "一句话描述目标受众，用于大纲生成",
+        "content_depth": "内容深度要求（应该讲多深、跳过什么）",
+        "example_style": "举例风格（用什么样的例子更容易让该用户理解）",
+        "pacing_requirement": "节奏要求（快/中/慢，是否需要详细解释每个概念）",
+        "motivation_hook": "开场引入建议（什么样的场景能吸引该用户）"
+    }},
+    "stage2_storyboard_guidance": {{
+        "visual_complexity": "视觉复杂度要求（简洁明了/适中/详尽复杂）",
+        "animation_pace": "动画节奏（每步停顿时间、是否需要重复演示）",
+        "code_display_style": "代码展示风格（注释多少、是否逐行讲解）",
+        "lecture_tone": "讲解语气风格（轻松活泼/专业严谨/循循善诱）",
+        "emphasis_points": "该用户特别需要强调的内容"
+    }},
+    "stage3_code_guidance": {{
+        "code_language": "代码语言",
+        "code_style": "代码风格要求（简洁/详细注释/展示多种写法）",
+        "variable_naming": "变量命名风格建议",
+        "comment_density": "注释密度（高/中/低）",
+        "complexity_handling": "复杂度讲解深度（是否需要数学证明）"
+    }}
+}}
+"""
 
 
-class DifficultyLevel(Enum):
-    """难度级别"""
-    LOW = "low"       # 低难度 - 入门级
-    MEDIUM = "medium" # 中难度 - 进阶级
-    HIGH = "high"     # 高难度 - 专家级
+def get_stage1_profile_prompt(parsed_profile: Dict[str, Any]) -> str:
+    """
+    根据解析后的用户画像，生成 Stage1（大纲生成）的用户画像提示词片段
+    
+    Args:
+        parsed_profile: AI 解析后的用户画像字典
+        
+    Returns:
+        用于 Stage1 的用户画像提示词
+    """
+    summary = parsed_profile.get("user_summary", {})
+    guidance = parsed_profile.get("stage1_outline_guidance", {})
+    
+    return f"""
+## 用户画像 (AI 智能解析)
+
+### 目标受众
+- **人群**: {summary.get('age_group', '未指定')}
+- **知识背景**: {summary.get('background', '未指定')}
+- **学习目标**: {summary.get('learning_goal', '未指定')}
+- **期望难度**: {summary.get('difficulty_preference', '中等')}
+- **编程语言**: {summary.get('target_language', 'Python')}
+
+### 大纲设计指导
+- **内容深度**: {guidance.get('content_depth', '适中')}
+- **举例风格**: {guidance.get('example_style', '贴近生活的例子')}
+- **节奏要求**: {guidance.get('pacing_requirement', '中等节奏')}
+- **开场引入**: {guidance.get('motivation_hook', '使用生活化场景引入')}
+"""
 
 
-class ProgrammingLanguage(Enum):
-    """编程语言"""
-    PYTHON = "Python"
-    JAVA = "Java"
-    C = "C"
-    CPP = "C++"
-    JAVASCRIPT = "JavaScript"
-    GO = "Go"
-    RUST = "Rust"
-    CSHARP = "C#"
-    PSEUDOCODE = "伪代码"  # 用于纯理论讲解
+def get_stage2_profile_prompt(parsed_profile: Dict[str, Any]) -> str:
+    """
+    根据解析后的用户画像，生成 Stage2（分镜脚本）的用户画像提示词片段
+    
+    Args:
+        parsed_profile: AI 解析后的用户画像字典
+        
+    Returns:
+        用于 Stage2 的用户画像提示词
+    """
+    summary = parsed_profile.get("user_summary", {})
+    guidance = parsed_profile.get("stage2_storyboard_guidance", {})
+    
+    return f"""
+## 用户画像 (AI 智能解析)
+
+### 受众特征
+- **目标观众**: {summary.get('age_group', '未指定')}
+- **知识背景**: {summary.get('background', '未指定')}
+- **编程语言**: {summary.get('target_language', 'Python')}
+
+### 分镜设计指导
+- **视觉复杂度**: {guidance.get('visual_complexity', '适中')}
+- **动画节奏**: {guidance.get('animation_pace', '中等节奏，关键步骤停顿')}
+- **代码展示风格**: {guidance.get('code_display_style', '适量注释，逐步讲解')}
+- **讲解语气**: {guidance.get('lecture_tone', '清晰专业')}
+- **特别强调**: {guidance.get('emphasis_points', '核心概念和实际应用')}
+"""
+
+
+def get_stage3_profile_prompt(parsed_profile: Dict[str, Any]) -> str:
+    """
+    根据解析后的用户画像，生成 Stage3（Manim代码生成）的用户画像提示词片段
+    
+    Args:
+        parsed_profile: AI 解析后的用户画像字典
+        
+    Returns:
+        用于 Stage3 的用户画像提示词
+    """
+    summary = parsed_profile.get("user_summary", {})
+    guidance = parsed_profile.get("stage3_code_guidance", {})
+    
+    return f"""
+## 用户画像 (AI 智能解析)
+
+### 受众特征
+- **目标观众**: {summary.get('age_group', '未指定')}
+- **知识背景**: {summary.get('background', '未指定')}
+- **期望难度**: {summary.get('difficulty_preference', '中等')}
+
+### Manim 代码生成指导
+- **代码语言**: {guidance.get('code_language', 'Python')}
+- **代码风格**: {guidance.get('code_style', '清晰易读，适量注释')}
+- **变量命名**: {guidance.get('variable_naming', '语义化命名')}
+- **注释密度**: {guidance.get('comment_density', '中等')}
+- **复杂度讲解**: {guidance.get('complexity_handling', '简要说明，不深入数学证明')}
+"""
 
 
 @dataclass
 class UserProfile:
-    """用户配置文件"""
-    age_group: AgeGroup = AgeGroup.COLLEGE
-    programming_language: ProgrammingLanguage = ProgrammingLanguage.PYTHON
-    difficulty: DifficultyLevel = DifficultyLevel.MEDIUM
+    """用户配置文件 - 基于自然语言描述"""
     
-    def get_age_group_description(self) -> str:
-        """获取年龄段的描述性文本"""
-        descriptions = {
-            AgeGroup.HIGH_SCHOOL: {
-                "audience": "初高中学生",
-                "background": "刚开始接触编程，数学基础为初高中水平",
-                "style": "生动有趣、多用生活实例类比",
-                "pace": "节奏较慢，每个概念都要详细解释",
-                "vocabulary": "避免过于专业的术语，使用通俗易懂的语言",
-                "examples": "使用校园生活、游戏、动漫等年轻人熟悉的场景作为例子",
-                "depth": "注重概念理解和直觉培养，不深入底层实现细节"
+    # 原始用户输入
+    raw_profile_text: str = ""
+    
+    # AI 解析后的结构化数据
+    parsed_profile: Optional[Dict[str, Any]] = None
+    
+    # 各阶段的用户画像提示词（由 AI 生成）
+    stage1_prompt: str = ""
+    stage2_prompt: str = ""
+    stage3_prompt: str = ""
+    
+    # 提取的关键信息（便于直接访问）
+    target_language: str = "Python"
+    
+    def __post_init__(self):
+        """如果有原始文本但没有解析结果，设置默认值"""
+        if self.raw_profile_text and not self.parsed_profile:
+            # 设置默认的解析结果
+            self.parsed_profile = self._get_default_parsed_profile()
+            self._generate_stage_prompts()
+    
+    def _get_default_parsed_profile(self) -> Dict[str, Any]:
+        """返回默认的解析结果结构"""
+        return {
+            "user_summary": {
+                "age_group": "大学生/研究生",
+                "background": "有一定编程基础",
+                "learning_goal": "学习算法与数据结构",
+                "target_language": "Python",
+                "difficulty_preference": "进阶"
             },
-            AgeGroup.COLLEGE: {
-                "audience": "大学生和研究生",
-                "background": "有一定编程基础，熟悉基本数据结构",
-                "style": "理论与实践结合，强调算法的数学原理",
-                "pace": "中等节奏，适当跳过基础概念",
-                "vocabulary": "可以使用专业术语，但需要适当解释",
-                "examples": "使用课程项目、面试题、学术研究场景",
-                "depth": "深入讲解算法原理，包含复杂度分析和优化思路"
+            "stage1_outline_guidance": {
+                "audience_description": "有编程基础的大学生",
+                "content_depth": "理论与实践结合，包含复杂度分析",
+                "example_style": "使用课程项目和面试题场景",
+                "pacing_requirement": "中等节奏，适当跳过基础概念",
+                "motivation_hook": "从实际问题引入，展示算法的实用价值"
             },
-            AgeGroup.PROFESSIONAL: {
-                "audience": "职场开发者和技术从业者",
-                "background": "有丰富的工程经验，关注实际应用",
-                "style": "直击重点、注重实战和工程最佳实践",
-                "pace": "正常节奏，内容更精炼但动画速度保持舒适，确保观看体验",
-                "vocabulary": "使用行业标准术语，无需过多解释",
-                "examples": "使用真实业务场景、系统设计、性能优化案例",
-                "depth": "强调工程实现、边界情况处理、性能调优和生产环境注意事项"
+            "stage2_storyboard_guidance": {
+                "visual_complexity": "适中，关键步骤详细展示",
+                "animation_pace": "中等节奏，关键步骤停顿讲解",
+                "code_display_style": "包含必要注释，展示标准实现",
+                "lecture_tone": "专业但易懂",
+                "emphasis_points": "算法核心思想和实现技巧"
+            },
+            "stage3_code_guidance": {
+                "code_language": "Python",
+                "code_style": "Pythonic风格，清晰易读",
+                "variable_naming": "语义化命名，遵循PEP8",
+                "comment_density": "中等，关键步骤有注释",
+                "complexity_handling": "简要说明时间空间复杂度"
             }
         }
-        return descriptions.get(self.age_group, descriptions[AgeGroup.COLLEGE])
     
-    def get_difficulty_description(self) -> str:
-        """获取难度级别的描述性文本"""
-        descriptions = {
-            DifficultyLevel.LOW: {
-                "level": "入门级",
-                "prerequisites": "仅需基本的编程概念（变量、循环、条件判断）",
-                "content_focus": "核心概念、基本操作、简单示例",
-                "code_style": "代码简洁明了，每行都有注释",
-                "examples_complexity": "使用最简单的示例，数据量小（如5个元素的数组）",
-                "skip_topics": "跳过高级优化、复杂变体、数学证明",
-                "visual_style": "动画步骤细致，每一步都停顿讲解"
-            },
-            DifficultyLevel.MEDIUM: {
-                "level": "进阶级",
-                "prerequisites": "熟悉基础数据结构（数组、链表、树）和时间复杂度概念",
-                "content_focus": "算法原理、常见变体、复杂度分析",
-                "code_style": "包含必要注释，展示标准实现",
-                "examples_complexity": "使用中等规模示例，展示典型情况和边界情况",
-                "skip_topics": "简化数学证明，提及但不深入最优化技巧",
-                "visual_style": "动画节奏适中，关键步骤重点展示"
-            },
-            DifficultyLevel.HIGH: {
-                "level": "专家级",
-                "prerequisites": "精通数据结构与算法，熟悉算法设计范式",
-                "content_focus": "深度优化、数学证明、高级变体、工业级实现",
-                "code_style": "展示多种实现方式，包括优化版本",
-                "examples_complexity": "使用复杂示例，展示极端情况和性能边界",
-                "skip_topics": "不跳过任何内容，全面深入讲解",
-                "visual_style": "动画节奏正常，内容更丰富但保持舒适的观看速度"
-            }
-        }
-        return descriptions.get(self.difficulty, descriptions[DifficultyLevel.MEDIUM])
+    def _generate_stage_prompts(self):
+        """根据解析结果生成各阶段的提示词"""
+        if self.parsed_profile:
+            self.stage1_prompt = get_stage1_profile_prompt(self.parsed_profile)
+            self.stage2_prompt = get_stage2_profile_prompt(self.parsed_profile)
+            self.stage3_prompt = get_stage3_profile_prompt(self.parsed_profile)
+            
+            # 提取目标语言
+            summary = self.parsed_profile.get("user_summary", {})
+            self.target_language = summary.get("target_language", "Python")
     
-    def get_language_description(self) -> str:
-        """获取编程语言的描述性文本"""
-        descriptions = {
-            ProgrammingLanguage.PYTHON: {
-                "name": "Python",
-                "style": "Pythonic风格，利用列表推导、内置函数等特性",
-                "features": "使用Python标准库（如heapq, collections）",
-                "syntax_notes": "注意缩进，使用类型提示增强可读性"
-            },
-            ProgrammingLanguage.JAVA: {
-                "name": "Java",
-                "style": "面向对象风格，使用类封装",
-                "features": "使用Java集合框架（ArrayList, HashMap, PriorityQueue）",
-                "syntax_notes": "明确声明类型，遵循Java命名规范"
-            },
-            ProgrammingLanguage.C: {
-                "name": "C",
-                "style": "简洁高效的过程式编程风格",
-                "features": "使用指针和数组操作，手动内存管理（malloc/free）",
-                "syntax_notes": "注意指针运算和内存安全，使用结构体组织数据"
-            },
-            ProgrammingLanguage.CPP: {
-                "name": "C++",
-                "style": "兼顾性能和可读性，使用现代C++特性",
-                "features": "使用STL容器和算法（vector, map, priority_queue）",
-                "syntax_notes": "注意内存管理，适当使用引用和指针"
-            },
-            ProgrammingLanguage.JAVASCRIPT: {
-                "name": "JavaScript",
-                "style": "函数式与面向对象混合风格",
-                "features": "使用ES6+特性（箭头函数、解构、Map/Set）",
-                "syntax_notes": "注意异步处理，使用const/let声明变量"
-            },
-            ProgrammingLanguage.GO: {
-                "name": "Go",
-                "style": "简洁务实的Go风格",
-                "features": "使用Go标准库和slice、map等内置类型",
-                "syntax_notes": "遵循Go惯例，适当使用goroutine展示并发"
-            },
-            ProgrammingLanguage.RUST: {
-                "name": "Rust",
-                "style": "安全高效的Rust风格",
-                "features": "利用所有权系统和标准库集合",
-                "syntax_notes": "展示Rust的内存安全特性，使用Result处理错误"
-            },
-            ProgrammingLanguage.CSHARP: {
-                "name": "C#",
-                "style": "现代C#风格，使用LINQ和泛型",
-                "features": "使用.NET集合类（List, Dictionary, SortedSet）",
-                "syntax_notes": "使用C#命名规范，展示属性和表达式主体成员"
-            },
-            ProgrammingLanguage.PSEUDOCODE: {
-                "name": "伪代码",
-                "style": "语言无关的伪代码风格",
-                "features": "使用通用数据结构描述，不依赖特定语言",
-                "syntax_notes": "注重算法逻辑的清晰表达，而非语法细节"
-            }
-        }
-        return descriptions.get(self.programming_language, descriptions[ProgrammingLanguage.PYTHON])
-    
-    def generate_profile_prompt(self) -> str:
-        """生成完整的用户配置提示词片段"""
-        age_desc = self.get_age_group_description()
-        diff_desc = self.get_difficulty_description()
-        lang_desc = self.get_language_description()
+    def update_with_parsed_profile(self, parsed_profile: Dict[str, Any]):
+        """使用 AI 解析的结果更新用户画像"""
+        self.parsed_profile = parsed_profile
+        self._generate_stage_prompts()
         
-        prompt = f"""
-## 用户配置 (User Profile)
-
-### 目标受众
-- **人群**: {age_desc['audience']}
-- **背景知识**: {age_desc['background']}
-- **讲解风格**: {age_desc['style']}
-- **节奏要求**: {age_desc['pace']}
-- **用语规范**: {age_desc['vocabulary']}
-- **举例偏好**: {age_desc['examples']}
-- **深度要求**: {age_desc['depth']}
-
-### 难度级别: {diff_desc['level']}
-- **前置知识**: {diff_desc['prerequisites']}
-- **内容重点**: {diff_desc['content_focus']}
-- **代码风格**: {diff_desc['code_style']}
-- **示例复杂度**: {diff_desc['examples_complexity']}
-- **可跳过内容**: {diff_desc['skip_topics']}
-- **动画风格**: {diff_desc['visual_style']}
-
-### 编程语言: {lang_desc['name']}
-- **代码风格**: {lang_desc['style']}
-- **语言特性**: {lang_desc['features']}
-- **语法注意**: {lang_desc['syntax_notes']}
-"""
-        return prompt
+        # 更新目标语言
+        summary = parsed_profile.get("user_summary", {})
+        self.target_language = summary.get("target_language", "Python")
+    
+    def get_stage1_prompt(self) -> str:
+        """获取 Stage1（大纲生成）的用户画像提示词"""
+        return self.stage1_prompt
+    
+    def get_stage2_prompt(self) -> str:
+        """获取 Stage2（分镜脚本）的用户画像提示词"""
+        return self.stage2_prompt
+    
+    def get_stage3_prompt(self) -> str:
+        """获取 Stage3（Manim代码）的用户画像提示词"""
+        return self.stage3_prompt
+    
+    def get_language(self) -> str:
+        """获取目标编程语言"""
+        return self.target_language
     
     def to_dict(self) -> dict:
         """转换为字典格式，便于序列化"""
         return {
-            "age_group": self.age_group.value,
-            "programming_language": self.programming_language.value,
-            "difficulty": self.difficulty.value
+            "raw_profile_text": self.raw_profile_text,
+            "parsed_profile": self.parsed_profile,
+            "target_language": self.target_language
         }
     
     @classmethod
     def from_dict(cls, data: dict) -> "UserProfile":
-        """从字典创建UserProfile实例"""
-        return cls(
-            age_group=AgeGroup(data.get("age_group", "college")),
-            programming_language=ProgrammingLanguage(data.get("programming_language", "Python")),
-            difficulty=DifficultyLevel(data.get("difficulty", "medium"))
+        """从字典创建 UserProfile 实例"""
+        profile = cls(
+            raw_profile_text=data.get("raw_profile_text", ""),
+            parsed_profile=data.get("parsed_profile"),
+            target_language=data.get("target_language", "Python")
         )
+        if profile.parsed_profile:
+            profile._generate_stage_prompts()
+        return profile
 
 
 def get_default_profile() -> UserProfile:
     """获取默认用户配置"""
-    return UserProfile()
+    default_text = "我是大学生，有一定编程基础，想学习算法与数据结构，使用Python，难度为进阶级别。"
+    profile = UserProfile(raw_profile_text=default_text)
+    return profile
 
 
-# 便捷函数：根据字符串参数创建配置
-def create_profile(
-    age_group: str = "college",
-    programming_language: str = "Python",
-    difficulty: str = "medium"
-) -> UserProfile:
+def create_profile_from_text(profile_text: str) -> UserProfile:
     """
-    根据字符串参数创建用户配置
+    根据自然语言描述创建用户配置（不调用 AI，使用默认结构）
+    实际的 AI 解析需要在 agent.py 中调用
     
     Args:
-        age_group: "high_school" | "college" | "professional"
-        programming_language: "Python" | "Java" | "C++" | "JavaScript" | "Go" | "Rust" | "C#" | "伪代码"
-        difficulty: "low" | "medium" | "high"
+        profile_text: 用户输入的自然语言描述
     
     Returns:
-        UserProfile 实例
+        UserProfile 实例（带有默认解析结果，需要后续调用 AI 更新）
     """
-    # 映射编程语言字符串到枚举
-    lang_mapping = {
-        "python": ProgrammingLanguage.PYTHON,
-        "java": ProgrammingLanguage.JAVA,
-        "c": ProgrammingLanguage.C,
-        "c++": ProgrammingLanguage.CPP,
-        "cpp": ProgrammingLanguage.CPP,
-        "javascript": ProgrammingLanguage.JAVASCRIPT,
-        "js": ProgrammingLanguage.JAVASCRIPT,
-        "go": ProgrammingLanguage.GO,
-        "rust": ProgrammingLanguage.RUST,
-        "c#": ProgrammingLanguage.CSHARP,
-        "csharp": ProgrammingLanguage.CSHARP,
-        "伪代码": ProgrammingLanguage.PSEUDOCODE,
-        "pseudocode": ProgrammingLanguage.PSEUDOCODE,
-    }
+    return UserProfile(raw_profile_text=profile_text)
+
+
+async def parse_profile_with_ai(
+    profile_text: str, 
+    api_function: Callable
+) -> Dict[str, Any]:
+    """
+    使用 AI 解析用户画像文本（异步版本）
     
-    return UserProfile(
-        age_group=AgeGroup(age_group.lower()),
-        programming_language=lang_mapping.get(programming_language.lower(), ProgrammingLanguage.PYTHON),
-        difficulty=DifficultyLevel(difficulty.lower())
-    )
+    Args:
+        profile_text: 用户输入的自然语言描述
+        api_function: API 调用函数
+        
+    Returns:
+        解析后的用户画像字典
+    """
+    import json
+    
+    prompt = get_profile_analysis_prompt(profile_text)
+    
+    try:
+        response, _ = api_function(prompt, max_tokens=2000)
+        
+        # 尝试从响应中提取文本
+        try:
+            content = response.candidates[0].content.parts[0].text
+        except Exception:
+            try:
+                content = response.choices[0].message.content
+            except Exception:
+                content = str(response)
+        
+        # 提取 JSON
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        
+        # 尝试解析 JSON
+        parsed = json.loads(content)
+        return parsed
+        
+    except json.JSONDecodeError as e:
+        print(f"⚠️ AI 解析用户画像失败（JSON解析错误）: {e}")
+        return None
+    except Exception as e:
+        print(f"⚠️ AI 解析用户画像失败: {e}")
+        return None
+
+
+def parse_profile_with_ai_sync(
+    profile_text: str, 
+    api_function: Callable,
+    max_retries: int = 5
+) -> Dict[str, Any]:
+    """
+    使用 AI 解析用户画像文本（同步版本，带重试机制）
+    
+    Args:
+        profile_text: 用户输入的自然语言描述
+        api_function: API 调用函数
+        max_retries: 最大重试次数，默认5次
+        
+    Returns:
+        解析后的用户画像字典
+    """
+    import json
+    import time
+    
+    prompt = get_profile_analysis_prompt(profile_text)
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"🔄 正在解析用户画像 (尝试 {attempt}/{max_retries})...")
+            
+            response, _ = api_function(prompt, max_tokens=2000)
+            
+            if response is None:
+                print(f"⚠️ 第 {attempt} 次尝试：API 返回空响应")
+                if attempt < max_retries:
+                    time.sleep(1)  # 等待1秒后重试
+                continue
+            
+            # 尝试从响应中提取文本
+            try:
+                content = response.candidates[0].content.parts[0].text
+            except Exception:
+                try:
+                    content = response.choices[0].message.content
+                except Exception:
+                    content = str(response)
+            
+            # 提取 JSON
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+            
+            # 尝试解析 JSON
+            parsed = json.loads(content)
+            
+            # 验证解析结果包含必要的字段
+            if "user_summary" in parsed and "stage1_outline_guidance" in parsed:
+                return parsed
+            else:
+                print(f"⚠️ 第 {attempt} 次尝试：解析结果缺少必要字段")
+                if attempt < max_retries:
+                    time.sleep(1)
+                continue
+            
+        except json.JSONDecodeError as e:
+            print(f"⚠️ 第 {attempt} 次尝试：JSON 解析错误 - {e}")
+            if attempt < max_retries:
+                time.sleep(1)
+            continue
+        except Exception as e:
+            print(f"⚠️ 第 {attempt} 次尝试：解析失败 - {e}")
+            if attempt < max_retries:
+                time.sleep(1)
+            continue
+    
+    print(f"❌ AI 解析用户画像失败，已尝试 {max_retries} 次")
+    return None

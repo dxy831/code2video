@@ -14,7 +14,7 @@ def get_prompt2_storyboard(
     Args:
         outline: 大纲JSON字符串
         reference_image_path: 参考图片路径（可选）
-        user_profile: 用户配置（年龄段、编程语言、难度），可选
+        user_profile: 用户配置，可选
     
     Returns:
         完整的提示词字符串
@@ -23,29 +23,14 @@ def get_prompt2_storyboard(
     if user_profile is None:
         user_profile = get_default_profile()
     
-    # 只获取必要的描述，移除 profile_prompt 调用以减少重复
-    age_desc = user_profile.get_age_group_description()
-    diff_desc = user_profile.get_difficulty_description()
-    lang_desc = user_profile.get_language_description()
+    # 获取 AI 智能生成的用户画像提示词
+    profile_prompt = user_profile.get_stage2_prompt()
+    target_language = user_profile.get_language()
     
     base_prompt = f""" 
     你是一位**硬核算法可视化导演**。请将大纲转化为详细的 Manim 动画脚本。
 
-    ## 用户配置
-
-    ### 受众适配
-    - 目标观众：**{age_desc['audience']}**
-    - 讲解节奏：{age_desc['pace']}
-    - 用语规范：{age_desc['vocabulary']}
-    
-    ### 难度适配
-    - 难度级别：**{diff_desc['level']}**
-    - 动画风格：{diff_desc['visual_style']}
-    - 代码展示风格：{diff_desc['code_style']}
-    
-    ### 编程语言
-    - 代码语言：**{lang_desc['name']}**
-    - 代码风格：{lang_desc['style']}
+    {profile_prompt}
 
     # 通用视觉映射系统 (Universal Visual Mapping System)
 
@@ -55,10 +40,10 @@ def get_prompt2_storyboard(
           - **Case B: 代码演示场景 (With Code - DEFAULT for Algorithms)** -> **采用 "左侧分割 + 右侧全屏" 布局 (Split-Left Layout)**:
             - **规则**: 凡是讲解算法具体步骤（循环、判断、交换、递归）的章节，**必须**使用此模式展示代码片段。严禁只在最后才展示代码。
             - **左上区域 (Top-Left, ~30% height)**: 放置讲解文字 (Lecture Notes)。
-            - **左下区域 (Bottom-Left, ~70% height)**: 放置 **{lang_desc['name']}** 代码片段 (Code Snippet)。
+            - **左下区域 (Bottom-Left, ~70% height)**: 放置 **{target_language}** 代码片段 (Code Snippet)。
             - **右侧区域 (Right Half, 100% height)**: 放置核心可视化/动画 (Main Visual)。
           - **Case C: 完整代码/纯代码 (Full Code - FINAL SECTION ONLY)**:
-            - **规则**: 最后一个章节专门展示完整 **{lang_desc['name']}** 源码。
+            - **规则**: 最后一个章节专门展示完整 **{target_language}** 源码。
             - **布局**: **隐藏左侧文字** (Lecture Notes opacity=0)，将代码对象放大并居中 (`scale(0.8).move_to(ORIGIN)`)。
             - **分页**: 如果代码超过 20 行，必须拆分为连续的子场景 (Sub-scenes, e.g., `Scene 12.1`, `Scene 12.2`)。
 
@@ -80,7 +65,7 @@ def get_prompt2_storyboard(
     3.  **脚本要求**:
         - 每一句旁白（Lecture Line）必须对应代码的解释。
         - 每一个动画（Animation）必须对应数据的变化（Create, Transform, FadeOut）。
-        - **节奏控制**：根据难度"{diff_desc['level']}"，{diff_desc['visual_style']}
+        - **节奏控制**：根据用户画像中的动画节奏要求调整。
     
     4.  **时长规划 (Duration Planning)**:
         - 每个 section 必须包含 `estimated_duration` 字段，单位为**秒**。
@@ -95,51 +80,86 @@ def get_prompt2_storyboard(
         - **重要**：时长估算应保守，宁可多估不可少估，确保观众有足够时间理解
 
     5.  **语言适配要求**:
-        - 所有代码示例必须使用 **{lang_desc['name']}**
-        - 代码语法高亮应适配 {lang_desc['name']} 语法
-        - 注释风格：{diff_desc['code_style']}
+        - 所有代码示例必须使用 **{target_language}**
+        - 代码语法高亮应适配 {target_language} 语法
 
     ## 输入大纲
     {outline}
     """
 
     base_prompt += """
-    请输出以下 JSON 格式：
+    
+    ## ⚠️⚠️⚠️ JSON 输出格式要求（必须严格遵守）⚠️⚠️⚠️
+    
+    **🚨 关键规则：**
+    1. **只输出纯 JSON**，不要添加任何解释文字、markdown 标记或注释
+    2. **字符串中的引号必须转义**：如果字符串内容包含双引号 `"`，必须写成 `\\"`
+    3. **字符串中的换行必须转义**：使用 `\\n` 而不是实际换行
+    4. **数组最后一个元素后不要加逗号**
+    5. **所有字符串必须用双引号**，不能用单引号
+    6. **确保 JSON 可以被 Python 的 json.loads() 正确解析**
+    
+    **✅ 正确的 JSON 格式示例：**
+    ```json
     {
         "sections": [
             {
                 "id": "section_0_intro",
                 "title": "场景引入",
                 "estimated_duration": 45,
-                "lecture_lines": ["第一句旁白...", "第二句旁白..."],
+                "lecture_lines": [
+                    "第一句旁白",
+                    "第二句旁白"
+                ],
                 "animations": [
                     "Define Visual Layout: Left-Right Split.",
                     "Visual: FadeIn title at top.",
-                    "Visual: Create scene illustration.",
-                    "Animation: Transform to problem setup."
+                    "Visual: Create scene illustration."
                 ]
             },
             {
                 "id": "section_1",
                 "title": "算法核心步骤",
                 "estimated_duration": 60,
-                "lecture_lines": ["讲解步骤1...", "讲解步骤2...", "讲解步骤3..."],
+                "lecture_lines": [
+                    "讲解步骤1",
+                    "讲解步骤2",
+                    "讲解步骤3"
+                ],
                 "animations": [
                     "Define Visual Layout: Split-Left Layout for code demonstration.",
-                    "Code: ```python\\ndef algorithm():\\n    pass\\n```",
+                    "Code: def algorithm():\\n    pass",
                     "Action: Highlight code line.",
-                    "Visual: Create data structure visualization.",
-                    "Animation: Show state transition.",
-                    "Monitor: Update variable display."
+                    "Visual: Create data structure visualization."
                 ]
             }
         ]
     }
+    ```
+    
+    **❌ 常见错误（会导致解析失败）：**
+    ```
+    // 错误1：数组最后一个元素后面有逗号
+    "lecture_lines": ["第一句", "第二句",]  // ❌ 最后的逗号是错的
+    
+    // 错误2：字符串内的引号没有转义
+    "title": "说"你好""  // ❌ 应该写成 "说\\"你好\\""
+    
+    // 错误3：使用单引号
+    'title': '标题'  // ❌ JSON 必须用双引号
+    
+    // 错误4：多余的逗号
+    {
+        "id": "section_1",
+        "title": "标题",  // ❌ 这是最后一个字段，不应该有逗号
+    }
+    ```
     
     **注意**：
     - `estimated_duration` 是该节的预计时长（秒），必须为整数
     - 时长要综合考虑 lecture_lines 数量、animations 复杂度、以及观众理解所需时间
     - 所有章节时长之和应大致符合视频总时长要求
+    - **请直接输出 JSON，不要用 ```json ``` 包裹**
     """
     return base_prompt
 

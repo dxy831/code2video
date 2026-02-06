@@ -17,7 +17,7 @@ def get_prompt3_code(
         regenerate_note: 重新生成的注意事项
         section: 章节信息对象
         base_class: 基类代码
-        user_profile: 用户配置（年龄段、编程语言、难度），可选
+        user_profile: 用户配置，可选
         estimated_duration: 该章节的预计时长（秒），可选
     
     Returns:
@@ -27,10 +27,9 @@ def get_prompt3_code(
     if user_profile is None:
         user_profile = get_default_profile()
     
-    # 只获取必要的描述，移除 profile_prompt 调用以减少重复
-    age_desc = user_profile.get_age_group_description()
-    diff_desc = user_profile.get_difficulty_description()
-    lang_desc = user_profile.get_language_description()
+    # 获取 AI 智能生成的用户画像提示词
+    profile_prompt = user_profile.get_stage3_prompt()
+    target_language = user_profile.get_language()
     
     # 生成时长指导说明
     duration_guidance = ""
@@ -54,22 +53,7 @@ def get_prompt3_code(
     {regenerate_note}
     {duration_guidance}
 
-    ## 根据用户配置的代码生成要求
-
-    ### 受众适配
-    - 目标观众：**{age_desc['audience']}**
-    - 讲解节奏：{age_desc['pace']}
-    - 内容深度：{age_desc['depth']}
-    
-    ### 难度适配
-    - 难度级别：**{diff_desc['level']}**
-    - 动画风格：{diff_desc['visual_style']}
-    - 代码注释风格：{diff_desc['code_style']}
-    
-    ### 编程语言
-    - 示例代码语言：**{lang_desc['name']}**
-    - 代码风格：{lang_desc['style']}
-    - 语言特性：{lang_desc['features']}
+    {profile_prompt}
 
     ### 核心任务：通用算法可视化
     不要硬编码特定的形状，而是根据算法逻辑选择最合适的 Manim 对象。
@@ -142,7 +126,7 @@ def get_prompt3_code(
     # ⚠️⚠️⚠️ 【必须使用特定的 tango 浅色语法高亮主题！】⚠️⚠️⚠️
     code_obj = Code(
         code_string=code_text,           # 使用 code_string 而不是 code
-        language="{lang_desc['name'].lower()}",
+        language="{target_language.lower()}",
         background="rectangle",
         formatter_style="tango",         # ⭐⭐⭐ 关键！指定的唯一语法高亮主题 ⭐⭐⭐
         background_config={{              # ⭐⭐⭐ 关键！自定义浅色背景 ⭐⭐⭐
@@ -189,7 +173,7 @@ def get_prompt3_code(
     ### 代码规范
     - 继承 `TeachingScene`，变量先定义后使用
     - 节奏：`self.wait(1)` 给观众思考时间
-    - 代码语言: **{lang_desc['name']}**
+    - 代码语言: **{target_language}**
 
     ### 参考代码结构
     ```python
@@ -199,13 +183,13 @@ def get_prompt3_code(
     class {section.id.title().replace('_', '')}Scene(TeachingScene):
         def construct(self):
             # 1. Setup Layout
-            code_raw = \"\"\"# {lang_desc['name']} 示例
+            code_raw = \"\"\"# {target_language} 示例
 def algo(data):
     # 核心逻辑
     pass\"\"\"
             code = Code(
                 code_string=code_raw, 
-                language="{lang_desc['name'].lower()}", 
+                language="{target_language.lower()}", 
                 formatter_style="tango",
                 background_config={{"fill_color": "#fff7e8", "stroke_color": "#e4c8a6", "stroke_width": 2}},
             )
@@ -235,26 +219,63 @@ def algo(data):
     Text("讲解文字", font="Noto Sans SC", font_size=25, color="#2C1608")
     ```
     
-    **【⚠️ 数学符号处理 - 混合 Text + MathTex】**
-    Noto Sans SC 不支持数学符号（如 `×`、`₂`、`≤` 等），必须混合使用 Text 和 MathTex：
+    **【⚠️⚠️⚠️ 数字与数学表达式 - 必须使用 MathTex！】**
+    
+    **🚨🚨🚨 核心规则：只要包含数字的表达式，全部使用 MathTex！🚨🚨🚨**
+    
+    **为什么？**
+    - Text() 在 Noto Sans SC 字体下无法正确显示数学符号（`²`, `⁷`, `×`, `÷` 等会变成方框）
+    - MathTex 渲染效果最好，数字和符号对齐完美
+    - 保持视觉一致性
+    
+    **✅ 简单规则：包含数字的表达式 → 用 MathTex**
+    
     ```python
-    # ✅ 正确：中文用 Text，数学符号用 MathTex
-    line = VGroup(
-        Text("- 时间复杂度是 ", font="Noto Sans SC", font_size=25, color="#2C1608"),
-        MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8),
-    ).arrange(RIGHT, buff=0.1)
+    # ✅ 正确：纯数学表达式直接用 MathTex
+    MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
+    MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8)
+    MathTex(r"100 \times 10 = 1000", color="#2C1608").scale(0.8)
+    MathTex(r"n^2 + 2n + 1", color="#2C1608").scale(0.8)
+    MathTex(r"7 < 10", color="#478211").scale(0.8)  # 比较表达式
+    MathTex(r"mid = 5", color="#2C1608").scale(0.8)  # 变量赋值
     
-    # ✅ 正确：乘号用 MathTex
-    line = VGroup(
-        Text("- 100个元素最多7次，", font="Noto Sans SC", font_size=25, color="#2C1608"),
-        MathTex(r"\\times", color="#2C1608").scale(0.8),
-        Text(" 1000个最多10次", font="Noto Sans SC", font_size=25, color="#2C1608"),
-    ).arrange(RIGHT, buff=0.1)
+    # ✅ 正确：中文 + 数学表达式，用 VGroup 组合
+    explain_text = VGroup(
+        Text("因为：", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
+    ).arrange(RIGHT, buff=0.2)
     
-    # ❌ 错误：直接在 Text 中使用数学符号会显示为方框
-    # Text("时间复杂度是 O(log₂n)")  # ₂ 无法显示！
-    # Text("100 × 10 = 1000")        # × 无法显示！
+    # ✅ 正确：时间复杂度
+    complexity = VGroup(
+        Text("时间复杂度：", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"O(\log_2 n)", color="#9B6D0B").scale(0.8)
+    ).arrange(RIGHT, buff=0.1)
     ```
+    
+    **❌ 绝对禁止：在 Text() 中写数字表达式**
+    ```python
+    # ❌ 错误：用 Text 显示数学表达式
+    Text("2⁷ = 128 > 100")      # ❌ 上标会变方框
+    Text("O(log₂n)")            # ❌ 下标会变方框
+    Text("100 × 10 = 1000")     # ❌ 乘号会变方框
+    Text("n² + 2n")             # ❌ 上标会变方框
+    ```
+    
+    **❌ 绝对禁止的错误写法（会导致显示异常）：**
+    ```python
+    # ❌ 错误：直接在 Text 中写数学符号 - 会显示方框！
+    Text("时间复杂度是 O(log₂n)")      # ❌ log₂ 显示为方框
+    Text("100 × 10 = 1000")            # ❌ × 显示为方框
+    Text("n² + 2n")                    # ❌ ² 显示为方框
+    
+    # ❌ 错误：用注释说"避免LaTeX问题"然后用纯文本 - 这是错误的！
+    # 不要写：if "log₂" in line: text_obj = Text(line, ...)  # ❌ 依然会显示方框
+    ```
+    
+    **🔍 检查清单（生成代码前必须确认）：**
+    - [ ] 讲解文字中是否包含 `log`、`O(`、`×`、`²`、`≤` 等？如果有，必须拆分为 Text + MathTex
+    - [ ] 是否使用了 VGroup(...).arrange(RIGHT, buff=0.1) 来组合？
+    - [ ] MathTex 是否设置了 .scale(0.8) 使大小与 Text 匹配？
     
     **【需要用 MathTex 的符号清单】**
     | 符号类型 | 常见符号 | MathTex 写法 |

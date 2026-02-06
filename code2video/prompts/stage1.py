@@ -15,7 +15,7 @@ def get_prompt1_outline(
         knowledge_point: 要讲解的知识点/算法
         duration: 视频时长（分钟）
         reference_image_path: 参考图片路径（可选）
-        user_profile: 用户配置（年龄段、编程语言、难度），可选，默认使用默认配置
+        user_profile: 用户配置，可选，默认使用默认配置
     
     Returns:
         完整的提示词字符串
@@ -24,10 +24,9 @@ def get_prompt1_outline(
     if user_profile is None:
         user_profile = get_default_profile()
     
-    # 只获取必要的描述，移除 profile_prompt 调用以减少重复
-    age_desc = user_profile.get_age_group_description()
-    diff_desc = user_profile.get_difficulty_description()
-    lang_desc = user_profile.get_language_description()
+    # 获取 AI 智能生成的用户画像提示词
+    profile_prompt = user_profile.get_stage1_prompt()
+    target_language = user_profile.get_language()
     
     base_prompt = f""" 
     你是一位**计算机科学教育架构师**。你需要设计一个**基于执行追踪（Execution Trace）**的深度算法教学大纲。
@@ -35,26 +34,7 @@ def get_prompt1_outline(
     目标算法: "{knowledge_point}"
     要求视频总时长：至少 {duration} 分钟。
     
-    ## 用户配置
-    
-    ### 受众适配要求
-    - 你的目标观众是 **{age_desc['audience']}**，他们的背景是：{age_desc['background']}
-    - 讲解风格必须：{age_desc['style']}
-    - 举例时请：{age_desc['examples']}
-    - 内容深度要求：{age_desc['depth']}
-    
-    ### 难度适配要求
-    - 当前难度级别：**{diff_desc['level']}**
-    - 假设观众已具备：{diff_desc['prerequisites']}
-    - 内容重点应放在：{diff_desc['content_focus']}
-    - 示例复杂度：{diff_desc['examples_complexity']}
-    - 可以跳过或简化：{diff_desc['skip_topics']}
-    
-    ### 编程语言要求
-    - 使用 **{lang_desc['name']}** 作为代码示例语言
-    - 代码风格：{lang_desc['style']}
-    - 充分利用语言特性：{lang_desc['features']}
-    - 语法注意事项：{lang_desc['syntax_notes']}
+    {profile_prompt}
     
     这意味着你需要：
     1. 设计足够多的小节（Sections），通常需要 8-12 个小节。
@@ -75,7 +55,7 @@ def get_prompt1_outline(
         - 在进入代码细节前，必须设计一个现实生活的类比场景（Analogy）。
         - 具体要求：
           - 场景化：例如讲二分搜索，必须先描述"在图书馆按编号找书"或"查字典"的场景。
-          - **重要**：场景选择必须符合目标受众（{age_desc['audience']}）的生活经验，{age_desc['examples']}
+          - **重要**：场景选择必须符合目标受众的生活经验和认知水平。
           - 对比痛点：必须展示"朴素做法"（如一本本翻，线性查找）的低效，以此引出"优化做法"（二分查找）的必要性。
           - 零代码：此阶段禁止出现任何代码或复杂变量，仅讨论逻辑和直觉。
         - 输出结构调整：在 JSON 的 sections 列表中，第一个 section 的 id 必须是 section_0_intro，内容必须是上述类比。
@@ -85,33 +65,44 @@ def get_prompt1_outline(
         - 如果这是**复杂/组合算法**（如 A*搜索、红黑树插入、带有记忆化的DP）：
           - 必须将视频分为：**"基础状态" -> "遇到的问题/瓶颈" -> "优化策略/核心操作" -> "最终状态"**。
           - 或者是：**"数据结构A的维护" + "数据结构B的配合"**（例如 LRU Cache = HashMap + DoubleLinkedList）。
-        - **根据难度调整**：难度为"{diff_desc['level']}"，所以{diff_desc['skip_topics']}。
+        - **根据用户画像调整内容深度和讲解风格**。
 
     2.  **用例设计 (Case Engineering)**:
         - 设计一个**"最小完备集" (Minimal Complete Case)**。
         - 这个用例不能太简单（导致看不出优化点），也不能太复杂（导致视频冗长）。
-        - **根据难度调整示例复杂度**：{diff_desc['examples_complexity']}
+        - **根据用户画像调整示例复杂度**。
         - *关键*：如果是优化算法，用例必须能触发那个"优化逻辑"（例如：讲剪枝算法，必须构造一个能被剪枝的分支）。
 
     3.  **变量追踪清单**:
         - 列出所有核心变量（Trace Variables）。对于复杂算法，可能包含：递归栈深度、当前 Cost、Hash表内容、PQ 队列状态等。
 
     4.  **代码展示要求**:
-        - 所有代码必须使用 **{lang_desc['name']}** 编写
-        - 代码风格：{lang_desc['style']}
-        - 注释详细程度根据难度调整：{diff_desc['code_style']}
+        - 所有代码必须使用 **{target_language}** 编写
+        - 代码风格和注释详细程度根据用户画像调整
 
     5.  **结尾结构要求 (Strict Ending Structure)**:
         - **倒数第二节 (Summary)**: 仅包含文字总结、复杂度回顾、优缺点分析。**禁止出现代码**。
-        - **最后一节 (Full Source Code)**: 仅展示完整的、可运行的 {lang_desc['name']} 源代码。**禁止出现大段讲解文字**。此部分专门用于让观众暂停截图或阅读完整逻辑。
+        - **最后一节 (Full Source Code)**: 仅展示完整的、可运行的 {target_language} 源代码。**禁止出现大段讲解文字**。此部分专门用于让观众暂停截图或阅读完整逻辑。
 
     # 输出格式 (JSON)
+    
+    ## ⚠️⚠️⚠️ JSON 输出格式要求（必须严格遵守）⚠️⚠️⚠️
+    
+    **🚨 关键规则：**
+    1. **只输出纯 JSON**，不要添加任何解释文字、markdown 标记或注释
+    2. **字符串中的引号必须转义**：如果字符串内容包含双引号 `"`，必须写成 `\\"`
+    3. **字符串中的换行必须转义**：使用 `\\n` 而不是实际换行
+    4. **数组最后一个元素后不要加逗号**
+    5. **所有字符串必须用双引号**，不能用单引号
+    6. **确保 JSON 可以被 Python 的 json.loads() 正确解析**
+    7. **请直接输出 JSON，不要用 ```json ``` 包裹**
+    
     请严格按照以下格式输出：
     {{
         "topic": "视频标题（体现深度和硬核，如'从零实现：XXX算法的内存级演示'）",
-        "target_audience": "{age_desc['audience']}",
-        "programming_language": "{lang_desc['name']}",
-        "difficulty_level": "{diff_desc['level']}",
+        "target_audience": "根据用户画像描述目标受众",
+        "programming_language": "{target_language}",
+        "difficulty_level": "根据用户画像确定的难度级别",
         "data_case_definition": "详细定义输入数据。例如：'图G：节点A-E，边权如下...；启发式函数 h(n)=...'",
         "algorithm_components": ["列出涉及的数据结构，如 'Min-Heap', 'Adjacency List', 'Visited Set'"],
         "sections": [
@@ -135,6 +126,12 @@ def get_prompt1_outline(
             }}
         ]
     }}
+    
+    **❌ 常见错误（会导致解析失败）：**
+    - 数组最后一个元素后面有逗号：`["a", "b",]` ❌
+    - 字符串内的引号没有转义：`"说"你好""` ❌ 应该是 `"说\\"你好\\""`
+    - 使用单引号：`'title'` ❌ JSON 必须用双引号
+    - 对象最后一个字段后有逗号：`{{"id": "1",}}` ❌
     """
     
     if reference_image_path:

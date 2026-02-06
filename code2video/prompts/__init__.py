@@ -7,14 +7,16 @@ from .stage4 import get_feedback_improve_code, get_feedback_list_prefix, get_pro
 from .stage5_eva import get_prompt_aes
 from .stage5_unlearning import get_unlearning_prompt, get_unlearning_and_video_learning_prompt
 
-# 用户个性化配置
+# 用户个性化配置 - 新的 AI 智能解析方式
 from .user_profile import (
     UserProfile,
-    AgeGroup,
-    DifficultyLevel,
-    ProgrammingLanguage,
     get_default_profile,
-    create_profile,
+    create_profile_from_text,
+    parse_profile_with_ai_sync,
+    get_profile_analysis_prompt,
+    get_stage1_profile_prompt,
+    get_stage2_profile_prompt,
+    get_stage3_profile_prompt,
 )
 
 __all__ = [
@@ -43,11 +45,13 @@ __all__ = [
     "get_unlearning_prompt",
     "get_unlearning_and_video_learning_prompt",
     
-    # 用户个性化配置
+    # 用户个性化配置 - AI 智能解析
     "UserProfile",
-    "AgeGroup",
-    "DifficultyLevel",
-    "ProgrammingLanguage",
     "get_default_profile",
-    "create_profile",
+    "create_profile_from_text",
+    "parse_profile_with_ai_sync",
+    "get_profile_analysis_prompt",
+    "get_stage1_profile_prompt",
+    "get_stage2_profile_prompt",
+    "get_stage3_profile_prompt",
 ]

@@ -1,0 +1,11 @@
+# This file is used internally by FFMPEG.
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/1005297906_2955912473_1686529493.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_4217992463_1824037063.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_733737482_4231262575.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_4217992463_3701665638.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_2385512134_978504532.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_4217992463_3278444721.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_766396978_2203757644.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_4217992463_4048230688.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_3615731586_2877529891.mp4'
+file 'file:F:/code/code2video/media/videos/test_mathtex/480p15/partial_movie_files/TestMathTexWithText/3472914705_2844360058_2272634112.mp4'
