@@ -1,6 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:D:/knowledge2video/media/videos/section_2_debug/480p15/partial_movie_files/VarInitScene/2737499832_1432596116_3725677517.mp4'
-file 'file:D:/knowledge2video/media/videos/section_2_debug/480p15/partial_movie_files/VarInitScene/4103585348_3954653429_3026378729.mp4'
-file 'file:D:/knowledge2video/media/videos/section_2_debug/480p15/partial_movie_files/VarInitScene/4103585348_4217992463_50209706.mp4'
-file 'file:D:/knowledge2video/media/videos/section_2_debug/480p15/partial_movie_files/VarInitScene/4103585348_233118345_3907701472.mp4'
-file 'file:D:/knowledge2video/media/videos/section_2_debug/480p15/partial_movie_files/VarInitScene/4103585348_2844360058_3618351423.mp4'

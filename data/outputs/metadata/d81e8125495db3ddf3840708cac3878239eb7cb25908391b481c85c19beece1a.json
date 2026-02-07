@@ -1,0 +1,94 @@
+{
+  "knowledge_point": "二分搜索",
+  "language": "Python",
+  "duration": 10,
+  "age": 20,
+  "gender": "男",
+  "extra_info": "我是大一学生，目标是利用寒假实现属于自己的小项目",
+  "api_model": "claude",
+  "outline": {
+    "topic": "从零掌握：二分搜索算法的完整执行追踪与实战演示",
+    "target_audience": "大一编程初学者，具备Python基础语法知识，希望通过寒假学习掌握实用算法技能",
+    "sections": [
+      {
+        "id": "section_0_intro",
+        "title": "场景引入：猜数字游戏的智慧",
+        "content": "想象一下，你和朋友玩一个猜数字游戏。朋友心里想了一个1到100之间的数字，你每猜一次，朋友只会告诉你'太大了'、'太小了'或者'猜对了'。\\n\\n如果你从1开始一个一个猜：1、2、3、4...最坏情况下要猜100次！这就像在图书馆找一本书，从第一本开始一本本翻，效率太低了。\\n\\n但聪明的你会怎么做？先猜50！如果朋友说'太大了'，你就知道答案在1-49之间；如果说'太小了'，答案就在51-100之间。这样一次就排除了一半的可能性！\\n\\n再猜剩下范围的中间值，又排除一半...最多只需要7次就能猜中任何数字（因为2的7次方=128>100）。\\n\\n这就是二分搜索的核心思想：每次都把搜索范围缩小一半，让100次的工作变成7次！",
+        "code_mapping": "None"
+      },
+      {
+        "id": "section_1_concept",
+        "title": "核心思想：分而治之",
+        "content": "二分搜索的精髓可以用三个字概括：砍一半。\\n\\n它的工作前提是：数据必须是有序的（从小到大或从大到小排列）。就像字典里的单词是按字母顺序排列的，你才能快速定位。\\n\\n算法的核心逻辑：\\n1. 找到当前搜索范围的中间位置\\n2. 比较中间元素和目标值\\n3. 如果相等，找到了！\\n4. 如果目标值更小，去左半边继续找\\n5. 如果目标值更大，去右半边继续找\\n6. 重复以上步骤，直到找到或者搜索范围为空\\n\\n这种策略叫做'分而治之'——把大问题分成小问题，逐步缩小范围。",
+        "code_mapping": "None"
+      },
+      {
+        "id": "section_2_init",
+        "title": "代码初始化：三个指针的设定",
+        "content": "现在让我们用代码来实现这个想法。首先需要定义三个关键变量：\\n\\n- low（左指针）：搜索范围的左边界，初始值为0（列表第一个位置）\\n- high（右指针）：搜索范围的右边界，初始值为len(numbers)-1（列表最后一个位置）\\n- mid（中间指针）：搜索范围的中间位置，通过计算得出\\n\\n以我们的数据为例：\\nnumbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n索引:       0  1  2   3   4   5   6   7   8   9\\n\\n初始状态：\\nlow = 0（指向元素2）\\nhigh = 9（指向元素91）\\n\\n中间位置的计算公式：mid = (low + high) // 2\\n这里 // 是Python的整除运算，确保结果是整数。",
+        "code_mapping": "def binary_search(numbers, target):\\n    low = 0\\n    high = len(numbers) - 1"
+      },
+      {
+        "id": "section_3_success_case",
+        "title": "成功查找演示：寻找目标值23",
+        "content": "让我们追踪查找 target=23 的完整过程：\\n\\nnumbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n索引:       0  1  2   3   4   5   6   7   8   9\\n\\n【第1次迭代】\\nlow=0, high=9\\nmid = (0+9)//2 = 4\\nnumbers[4] = 16\\n16 < 23，目标在右边！\\n更新：low = mid + 1 = 5\\n\\n【第2次迭代】\\nlow=5, high=9\\nmid = (5+9)//2 = 7\\nnumbers[7] = 56\\n56 > 23，目标在左边！\\n更新：high = mid - 1 = 6\\n\\n【第3次迭代】\\nlow=5, high=6\\nmid = (5+6)//2 = 5\\nnumbers[5] = 23\\n23 == 23，找到了！\\n\\n返回索引 5\\n\\n总共只用了3次比较，而线性查找需要6次！",
+        "code_mapping": "while low <= high:\\n    mid = (low + high) // 2\\n    if numbers[mid] == target:\\n        return mid\\n    elif numbers[mid] < target:\\n        low = mid + 1\\n    else:\\n        high = mid - 1"
+      },
+      {
+        "id": "section_4_left_search",
+        "title": "左侧查找演示：目标在前半部分",
+        "content": "现在让我们查找 target=5，它在列表的前半部分：\\n\\nnumbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n索引:       0  1  2   3   4   5   6   7   8   9\\n\\n【第1次迭代】\\nlow=0, high=9\\nmid = (0+9)//2 = 4\\nnumbers[4] = 16\\n16 > 5，目标在左边！\\n更新：high = mid - 1 = 3\\n\\n【第2次迭代】\\nlow=0, high=3\\nmid = (0+3)//2 = 1\\nnumbers[1] = 5\\n5 == 5，找到了！\\n\\n返回索引 1\\n\\n注意观察：当目标值小于中间值时，我们把 high 指针移动到 mid-1，这样就排除了右半部分所有元素。",
+        "code_mapping": "# 当 numbers[mid] > target 时\\n# 目标一定在左半边\\nhigh = mid - 1"
+      },
+      {
+        "id": "section_5_right_search",
+        "title": "右侧查找演示：目标在后半部分",
+        "content": "接下来查找 target=72，它在列表的后半部分：\\n\\nnumbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n索引:       0  1  2   3   4   5   6   7   8   9\\n\\n【第1次迭代】\\nlow=0, high=9\\nmid = (0+9)//2 = 4\\nnumbers[4] = 16\\n16 < 72，目标在右边！\\n更新：low = mid + 1 = 5\\n\\n【第2次迭代】\\nlow=5, high=9\\nmid = (5+9)//2 = 7\\nnumbers[7] = 56\\n56 < 72，目标在右边！\\n更新：low = mid + 1 = 8\\n\\n【第3次迭代】\\nlow=8, high=9\\nmid = (8+9)//2 = 8\\nnumbers[8] = 72\\n72 == 72，找到了！\\n\\n返回索引 8\\n\\n当目标值大于中间值时，我们把 low 指针移动到 mid+1，排除左半部分。",
+        "code_mapping": "# 当 numbers[mid] < target 时\\n# 目标一定在右半边\\nlow = mid + 1"
+      },
+      {
+        "id": "section_6_fail_case",
+        "title": "查找失败演示：指针如何交错",
+        "content": "如果要查找的元素不存在会怎样？让我们查找 target=50：\\n\\nnumbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n索引:       0  1  2   3   4   5   6   7   8   9\\n\\n【第1次迭代】\\nlow=0, high=9, mid=4\\nnumbers[4]=16 < 50，往右找\\nlow = 5\\n\\n【第2次迭代】\\nlow=5, high=9, mid=7\\nnumbers[7]=56 > 50，往左找\\nhigh = 6\\n\\n【第3次迭代】\\nlow=5, high=6, mid=5\\nnumbers[5]=23 < 50，往右找\\nlow = 6\\n\\n【第4次迭代】\\nlow=6, high=6, mid=6\\nnumbers[6]=38 < 50，往右找\\nlow = 7\\n\\n【循环结束】\\n此时 low=7, high=6\\nlow > high，条件 low <= high 不满足\\n搜索范围为空，元素不存在！\\n\\n返回 -1\\n\\n关键观察：当 low > high 时，说明搜索范围已经为空，目标不存在。",
+        "code_mapping": "# 循环条件：low <= high\\n# 当 low > high 时，循环结束\\n# 如果循环结束还没找到，返回-1\\nreturn -1"
+      },
+      {
+        "id": "section_7_boundary",
+        "title": "边界情况处理：特殊场景全覆盖",
+        "content": "一个健壮的算法必须处理各种边界情况：\\n\\n【情况1：空列表】\\nnumbers = []\\nlow=0, high=-1\\n条件 low<=high 一开始就不满足\\n直接返回 -1\\n\\n【情况2：只有一个元素】\\nnumbers = [42], target=42\\nlow=0, high=0, mid=0\\nnumbers[0]=42 == 42，找到！\\n返回 0\\n\\nnumbers = [42], target=10\\nlow=0, high=0, mid=0\\nnumbers[0]=42 > 10，high=-1\\nlow > high，返回 -1\\n\\n【情况3：目标在开头】\\nnumbers = [2, 5, 8, 12, 16], target=2\\n第1次：mid=2, numbers[2]=8 > 2, high=1\\n第2次：mid=0, numbers[0]=2 == 2，找到！\\n\\n【情况4：目标在结尾】\\nnumbers = [2, 5, 8, 12, 16], target=16\\n第1次：mid=2, numbers[2]=8 < 16, low=3\\n第2次：mid=3, numbers[3]=12 < 16, low=4\\n第3次：mid=4, numbers[4]=16 == 16，找到！\\n\\n所有边界情况都能正确处理！",
+        "code_mapping": "# 边界检查已内置于循环条件中\\n# while low <= high 确保：\\n# 1. 空列表不会进入循环\\n# 2. 单元素列表正确处理\\n# 3. 首尾元素都能找到"
+      },
+      {
+        "id": "section_8_complexity",
+        "title": "复杂度分析：为什么是O(log n)",
+        "content": "让我们用数学来理解二分搜索的效率：\\n\\n【时间复杂度】\\n每次迭代，搜索范围缩小一半：\\nn -> n/2 -> n/4 -> n/8 -> ... -> 1\\n\\n假设需要k次迭代才能将范围缩小到1：\\nn / 2^k = 1\\nn = 2^k\\nk = log₂(n)\\n\\n所以时间复杂度是 O(log n)\\n\\n具体例子：\\n- 10个元素：最多 log₂(10) ≈ 4 次\\n- 1000个元素：最多 log₂(1000) ≈ 10 次\\n- 100万个元素：最多 log₂(1000000) ≈ 20 次！\\n\\n对比线性查找的 O(n)：\\n100万个元素，线性查找最坏要100万次，二分只要20次！\\n\\n【空间复杂度】\\n只用了 low, high, mid 三个变量\\n空间复杂度是 O(1)，常数级别\\n\\n【前提条件】\\n数据必须有序！如果数据无序，需要先排序。\\n排序的时间复杂度通常是 O(n log n)。",
+        "code_mapping": "# 时间复杂度：O(log n)\\n# 空间复杂度：O(1)\\n# 前提：列表必须有序"
+      },
+      {
+        "id": "section_9_applications",
+        "title": "实际应用：二分搜索在生活中的身影",
+        "content": "二分搜索的思想无处不在：\\n\\n【应用1：查字典/电话簿】\\n按字母顺序排列，快速定位单词\\n\\n【应用2：游戏中的排行榜】\\n快速查找某个玩家的排名位置\\n\\n【应用3：版本控制中的Bug定位】\\nGit bisect 命令用二分法找出引入Bug的提交\\n\\n【应用4：数据库索引】\\nB树、B+树的核心就是二分思想\\n\\n【应用5：猜价格游戏】\\n商品价格在1-1000元之间，最多10次就能猜中\\n\\n【你的小项目创意】\\n- 成绩查询系统：快速查找某个分数段的学生\\n- 单词本应用：按字母顺序存储，快速查词\\n- 游戏道具商城：按价格排序，快速筛选\\n\\n掌握二分搜索，你就掌握了高效查找的核心武器！",
+        "code_mapping": "None"
+      },
+      {
+        "id": "section_10_summary",
+        "title": "总结回顾：二分搜索的精髓",
+        "content": "恭喜你完成了二分搜索的学习！让我们回顾核心要点：\\n\\n【核心思想】\\n分而治之，每次排除一半的搜索范围\\n\\n【三个指针】\\n- low：左边界\\n- high：右边界\\n- mid：中间位置，mid = (low + high) // 2\\n\\n【循环条件】\\nwhile low <= high\\n当 low > high 时，搜索范围为空\\n\\n【三种情况】\\n1. numbers[mid] == target：找到了，返回mid\\n2. numbers[mid] < target：目标在右边，low = mid + 1\\n3. numbers[mid] > target：目标在左边，high = mid - 1\\n\\n【复杂度】\\n- 时间：O(log n) —— 超级高效！\\n- 空间：O(1) —— 只需要三个变量\\n\\n【使用前提】\\n数据必须是有序的！\\n\\n【优点】\\n查找效率极高，100万数据只需20次比较\\n\\n【缺点】\\n需要数据有序，不适合频繁插入删除的场景\\n\\n现在你已经掌握了程序员必备的基础算法之一，可以把它用在你的寒假项目中了！",
+        "code_mapping": "None"
+      },
+      {
+        "id": "section_11_full_code",
+        "title": "完整源代码",
+        "content": "以下是二分搜索的完整Python实现，可以直接复制使用：",
+        "code_mapping": "def binary_search(numbers, target):\\n    \"\"\"\\n    二分搜索算法\\n    在有序列表中查找目标值\\n    \\n    参数:\\n        numbers: 有序列表（从小到大）\\n        target: 要查找的目标值\\n    \\n    返回:\\n        找到返回索引，找不到返回-1\\n    \"\"\"\\n    # 初始化左右指针\\n    low = 0\\n    high = len(numbers) - 1\\n    \\n    # 当搜索范围有效时继续循环\\n    while low <= high:\\n        # 计算中间位置\\n        mid = (low + high) // 2\\n        \\n        # 找到目标值\\n        if numbers[mid] == target:\\n            return mid\\n        # 目标值在右半部分\\n        elif numbers[mid] < target:\\n            low = mid + 1\\n        # 目标值在左半部分\\n        else:\\n            high = mid - 1\\n    \\n    # 搜索范围为空，未找到\\n    return -1\\n\\n\\n# 测试代码\\nif __name__ == \"__main__\":\\n    # 测试数据\\n    numbers = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]\\n    \\n    # 测试用例1：成功查找\\n    result = binary_search(numbers, 23)\\n    print(f\"查找23的结果：索引{result}\")  # 输出：索引5\\n    \\n    # 测试用例2：查找失败\\n    result = binary_search(numbers, 50)\\n    print(f\"查找50的结果：索引{result}\")  # 输出：索引-1\\n    \\n    # 测试用例3：查找开头元素\\n    result = binary_search(numbers, 2)\\n    print(f\"查找2的结果：索引{result}\")   # 输出：索引0\\n    \\n    # 测试用例4：查找结尾元素\\n    result = binary_search(numbers, 91)\\n    print(f\"查找91的结果：索引{result}\")  # 输出：索引9\\n    \\n    # 测试用例5：空列表\\n    result = binary_search([], 10)\\n    print(f\"空列表查找结果：索引{result}\")  # 输出：索引-1\\n    \\n    # 测试用例6：单元素列表\\n    result = binary_search([42], 42)\\n    print(f\"单元素列表查找42：索引{result}\")  # 输出：索引0"
+      }
+    ]
+  },
+  "token_usage": {
+    "prompt_tokens": 141650,
+    "completion_tokens": 32542,
+    "total_tokens": 174192
+  },
+  "created_at": "2026-02-07T17:32:24.847670",
+  "saved_at": "2026-02-07T17:32:24.855352"
+}
