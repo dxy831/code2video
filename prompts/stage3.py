@@ -59,34 +59,82 @@ def get_prompt3_code(
     
     **在生成任何代码之前，请确保理解并遵守以下最重要的规则：**
     
-    ### 规则 1：数学公式必须用 MathTex
+    ### 规则 1：数学公式和特殊符号必须用 MathTex
+    
+    **🔴 以下内容必须使用 MathTex，严禁使用 Text()：**
+    - 所有数学公式（如 `O(log n)`, `n²`, `2^7`等）
+    - 比较表达式（如 `5 > 3`, `mid = 5`等）
+    - **勾号 ✓ 和叉号 ✗ / ×**（Text 无法显示！）
+    
     ```python
-    # ✅ 正确：所有数学表达式用 MathTex
+    # ✅ 正确：数学表达式用 MathTex
     MathTex(r"O(\log_2 n)", color="#9B6D0B").scale(0.8)
     MathTex(r"2^7 = 128", color="#9B6D0B").scale(0.8)
     
-    # ❌ 错误：用 Text 显示数学符号会变成方框！
+    # ✅ 正确：勾和叉必须用 MathTex
+    correct_mark = MathTex(r"\checkmark", color="#478211").scale(1.2)  # 绿色勾 ✓
+    wrong_mark = MathTex(r"\times", color="#C84A2B").scale(1.2)        # 红色叉 ✗
+    
+    # ❌ 错误：用 Text 显示会变成方框！
     Text("O(log₂n)")  # ❌ 会显示方框
+    Text("✓")         # ❌ 会显示方框
+    Text("✗")         # ❌ 会显示方框
+    Text("×")         # ❌ 会显示方框
     ```
     
-    ### 规则 2：代码块必须用 tango + background_config
-    ```python
-    # ✅ 正确：必须同时有 formatter_style="tango" 和 background_config
-    Code(
-        code_string=code_text,
-        language="python",
-        background="rectangle",
-        formatter_style="tango",                    # 🔴 必须有
-        background_config={{                         # 🔴 必须有
-            "fill_color": "#fff7e8",
-            "stroke_color": "#e4c8a6",
-            "stroke_width": 2
-        }}
-    )
+    ### 🔴🔴🔴 规则 1.1：勾号和叉号的唯一正确写法 🔴🔴🔴
     
-    # ❌ 错误：缺少任何一个都是错误的
+    **这是最容易犯错的地方！AI 经常错误地使用 Text("✓") 或 Text("✗")！**
+    
+    **✅ 唯一正确的写法（必须完全按照这个格式）：**
+    ```python
+    # 绿色勾号 ✓ - 表示正确
+    correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)
+    
+    # 红色叉号 ✗ - 表示错误 
+    wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)
+    ```
+    
+    **❌ 以下写法全部是错误的（会显示方框或乱码）：**
+    ```python
+    # ❌ 错误写法 1：直接在 Text 中使用 Unicode 符号
+    Text("✓")           # ❌ 显示方框
+    Text("✗")           # ❌ 显示方框
+    Text("×")           # ❌ 显示方框
+    Text("√")           # ❌ 显示方框
+    
+    # ❌ 错误写法 2：在注释中写"勾"或"叉"然后用 Text
+    # 红叉表示不需要交换
+    wrong_mark = Text("✗", font="Noto Sans SC", font_size=28, color="#C84A2B")  # ❌ 错误！
+    
+    # ❌ 错误写法 3：使用其他 Unicode 字符
+    Text("☑")           # ❌ 显示方框
+    Text("☒")           # ❌ 显示方框
+    ```
+    
+    **🔍 自检：如果你的代码中出现以下任何内容，必须改为 MathTex：**
+    - `Text("✓"` → 改为 `MathTex(r"\\checkmark"`
+    - `Text("✗"` → 改为 `MathTex(r"\\times"`
+    - `Text("×"` → 改为 `MathTex(r"\\times"`
+    - `Text("√"` → 改为 `MathTex(r"\\checkmark"`
+    
+    ### 规则 2：代码块必须使用 self.create_code_block()
+    
+    **🔴 严禁手动创建 Code 对象！必须使用基类提供的 `self.create_code_block()` 方法！**
+    
+    ```python
+    # ✅ 正确：使用 self.create_code_block() 创建代码块
+    code_obj = self.create_code_block(code_text, language="{target_language.lower()}")
+    code_obj.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
+    
+    # ❌ 错误：手动创建 Code 对象（容易遗漏参数导致深色背景）
     Code(code_string=code_text, language="python")  # ❌ 会是深色背景
     ```
+    
+    **`create_code_block()` 已经内置了正确的配置：**
+    - `formatter_style="tango"` - tango 语法高亮主题
+    - `background="rectangle"` - 矩形背景
+    - `background_config` - 浅金色背景 + 金色边框
     
     ### 规则 3：元素位置边界限制（严禁出框！）
     
@@ -124,6 +172,48 @@ def get_prompt3_code(
     - 文字/代码块太多超出下边界
     - 动画元素与标题重叠（超出上边界 Y=3.0）
     
+    ### 规则 4：讲解文字必须使用 font_size=20
+    
+    **🔴 左侧讲解文字的字体大小必须固定为 20！**
+    
+    ```python
+    # ✅ 正确：讲解文字必须使用 font_size=20
+    new_lecture_texts = [
+        Text(line, font="Noto Sans SC", font_size=20, color="#2C1608") 
+        for line in new_lecture_lines
+    ]
+    new_lecture = VGroup(*new_lecture_texts).arrange(DOWN, aligned_edge=LEFT, buff=0.3)
+    new_lecture.align_to(lecture_pos, UL)          
+    ```
+
+    **字体大小规范：**
+    | 元素类型 | font_size | 说明 |
+    |---------|-----------|------|
+    | 大标题 | 28 | 顶部标题，加粗 |
+    | **讲解文字** | **20** | **左侧讲解区域，必须固定** |
+    
+    ### 规则 5：construct() 开头必须调用 setup_layout()
+    
+    **🔴🔴🔴 严禁跳过 setup_layout()！这是设置背景色的关键！🔴🔴🔴**
+    
+    `setup_layout()` 方法会设置奶油白背景色 `#FFFDF4`，如果不调用，背景会是黑色！
+    
+    ```python
+    # ✅ 正确：construct() 第一行必须调用 setup_layout()
+    class MyScene(TeachingScene):
+        def construct(self):
+            # 🔴 第一行必须调用 setup_layout()！
+            self.setup_layout("标题文字", ["讲解文字1", "讲解文字2"])
+            
+            # 然后再创建其他元素...
+    
+    # ❌ 错误：不调用 setup_layout() 会导致黑色背景！
+    class MyScene(TeachingScene):
+        def construct(self):
+            # ❌ 直接创建元素，没有调用 setup_layout()
+            title = Text("标题", ...)  # 背景是黑色！
+    ```
+
     ---
 
     ### 核心任务：通用算法可视化
@@ -189,31 +279,28 @@ def get_prompt3_code(
         obj.shift(UP * (RIGHT_BOTTOM_Y - obj.get_bottom()[1] + 0.2))
     ```
 
-    **【🚨🚨🚨 代码展示 - 必须使用 Code 对象 + tango + 浅色背景 🚨🚨🚨】**
+    **【🚨🚨🚨 代码展示 - 必须使用 self.create_code_block() 🚨🚨🚨】**
     
-    ⚠️ **严禁用 Text() 显示代码！必须使用 Code() 对象**
-    
-    **🔴🔴🔴 每次创建 Code 对象时，必须同时满足以下 3 个条件：🔴🔴🔴**
-    1. `formatter_style="tango"` - 必须使用 tango 语法高亮主题
-    2. `background_config` - 必须设置浅色背景配置
-    3. `background="rectangle"` - 必须设置背景形状
-    
-    **缺少任何一个都是错误的！**
+    ⚠️ **严禁用 Text() 显示代码！必须使用基类的 `self.create_code_block()` 方法！**
     
     ```python
-    # ✅✅✅ 唯一正确的写法 - 必须完整复制这个模板 ✅✅✅
-    code_obj = Code(
-        code_string=code_text,           # 使用 code_string 而不是 code
-        language="{target_language.lower()}",
-        background="rectangle",          # 🔴 必须有
-        formatter_style="tango",         # 🔴 必须是 tango，不能是其他值
-        background_config={{              # 🔴 必须有，且必须是这个配色
-            "fill_color": "#fff7e8",     # 浅金色背景
-            "stroke_color": "#e4c8a6",   # 金色边框
-            "stroke_width": 2
-        }}
-    )
+    # ✅✅✅ 唯一正确的写法 ✅✅✅
+    code_text = \"\"\"# {target_language} 示例
+def algo(data):
+    # 核心逻辑
+    pass\"\"\"
+    code_obj = self.create_code_block(code_text, language="{target_language.lower()}")
+    code_obj.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
+    self.play(Create(code_obj))
+    
+    # ❌ 错误：手动创建 Code 对象
+    Code(code_string=code_text, language="python")  # ❌ 容易遗漏参数
     ```
+    
+    **`create_code_block()` 已内置正确配置：**
+    - `formatter_style="tango"` - tango 语法高亮
+    - `background="rectangle"` - 矩形背景
+    - `background_config` - 浅金色背景 #fff7e8 + 金色边框 #e4c8a6
     
     **【代码注释规则 - 必须使用中文】**
     - **代码注释必须全部使用中文**，方便观众理解
@@ -258,17 +345,15 @@ def get_prompt3_code(
 
     class {section.id.title().replace('_', '')}Scene(TeachingScene):
         def construct(self):
-            # 1. Setup Layout
+            # 🔴🔴🔴 第一行必须调用 setup_layout()！设置背景色和基础布局 🔴🔴🔴
+            self.setup_layout("{section.title}", {section.lecture_lines[:4]})
+            
+            # 1. 创建代码块 - 🔴 必须使用 self.create_code_block()！
             code_raw = \"\"\"# {target_language} 示例
 def algo(data):
     # 核心逻辑
     pass\"\"\"
-            code = Code(
-                code_string=code_raw, 
-                language="{target_language.lower()}", 
-                formatter_style="tango",
-                background_config={{"fill_color": "#fff7e8", "stroke_color": "#e4c8a6", "stroke_width": 2}},
-            )
+            code = self.create_code_block(code_raw, language="{target_language.lower()}")
             code.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
             self.play(Create(code))
             
@@ -292,7 +377,7 @@ def algo(data):
     ```python
     # ✅ 正确示例
     Text("标题文字", font="Noto Sans SC", font_size=28, color="#BE8944", weight="BOLD")
-    Text("讲解文字", font="Noto Sans SC", font_size=25, color="#2C1608")
+    Text("讲解文字", font="Noto Sans SC", font_size=20, color="#2C1608")  # 讲解文字必须 font_size=20
     ```
     
     **【🚨🚨🚨 数字与数学表达式 - 必须使用 MathTex！🚨🚨🚨】**
@@ -317,20 +402,12 @@ def algo(data):
     MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
     MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8)
     MathTex(r"100 \times 10 = 1000", color="#2C1608").scale(0.8)
-    MathTex(r"7 < 10", color="#478211").scale(0.8)  # 比较表达式
-    MathTex(r"mid = 5", color="#2C1608").scale(0.8)  # 变量赋值
     
     # ✅ 正确：中文 + 数学表达式，用 VGroup 组合
     explain_text = VGroup(
         Text("因为：", font="Noto Sans SC", font_size=20, color="#2C1608"),
         MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
     ).arrange(RIGHT, buff=0.2)
-    
-    # ✅ 正确：时间复杂度
-    complexity = VGroup(
-        Text("时间复杂度：", font="Noto Sans SC", font_size=20, color="#2C1608"),
-        MathTex(r"O(\log_2 n)", color="#9B6D0B").scale(0.8)
-    ).arrange(RIGHT, buff=0.1)
     ```
     
     **❌ 绝对禁止：在 Text() 中写数字表达式**
@@ -427,11 +504,46 @@ def get_regenerate_note(attempt, MAX_REGENERATE_TRIES, error_message: str = None
 {error_message}
 ```
 
-请根据错误信息修复代码：
-- 修复导致运行失败的具体问题
-- 确保所有变量在使用前已定义
-- 检查 Manim 对象的属性和方法调用是否正确
-- **保持原有的大致动画效果和逻辑，不要过度简化**
+## 🔴🔴🔴 修复要求（必须严格遵守！）🔴🔴🔴
+
+**1. 只修复错误，不删除内容！**
+- 仅针对错误信息中指出的具体问题进行修复
+- **严禁删除任何讲解文字、动画步骤或 wait() 调用**
+- **严禁缩短视频时长或减少内容**
+- **严禁将复杂动画简化为只显示标题和文字**
+
+**2. 保持完整性检查清单：**
+- [ ] 所有原有的讲解文字是否都保留了？
+- [ ] 所有原有的动画步骤是否都保留了？
+- [ ] wait() 调用的总时长是否与原来相近？
+- [ ] 数据结构可视化（数组、指针、高亮等）是否完整？
+- [ ] 代码块和代码高亮是否保留？
+
+**3. 常见错误的正确修复方式：**
+| 错误类型 | ✅ 正确做法 | ❌ 错误做法 |
+|---------|-----------|-----------|
+| 变量未定义 | 添加变量定义 | 删除使用该变量的代码 |
+| 索引越界 | 修复索引计算或添加边界检查 | 减少数组元素数量 |
+| 对象属性错误 | 修正属性名或方法调用 | 删除该对象 |
+| 动画冲突 | 调整动画顺序或使用 AnimationGroup | 删除动画 |
+| LaTeX 错误 | 修复 LaTeX 语法 | 改用纯文本（会显示方框） |
+| **引号嵌套错误** | 内层用单引号 `'` | 内层用中文双引号 `"` |
+
+**🔴 引号嵌套规则（非常重要！）：**
+- 如果 Text() 外层使用双引号 `"`，内层必须使用**英文单引号** `'`
+- ❌ 错误：`Text("最大的数"浮"到最后！")` - 中文双引号会导致语法错误
+- ✅ 正确：`Text("最大的数'浮'到最后！")` - 使用英文单引号
+
+**4. 如果实在无法修复某个复杂动画：**
+- 用等效的简单动画替代，而不是直接删除
+- 保持相同的讲解内容和时长
+- 例如：复杂的数组交换动画 → 简单的 FadeOut + FadeIn，但保留数值变化的展示
+
+**5. 绝对禁止的行为：**
+- ❌ 删除整个动画演示部分，只保留标题和讲解文字
+- ❌ 将 30 秒的视频缩短为 5 秒
+- ❌ 删除代码块展示
+- ❌ 删除数据结构可视化
 """
     
     else:
@@ -440,4 +552,5 @@ def get_regenerate_note(attempt, MAX_REGENERATE_TRIES, error_message: str = None
 - 确保所有变量在使用前已定义
 - 检查 `self.wait()` 是否充足
 - **保持动画效果完整，不要过度简化**
+- **严禁删除任何讲解文字、动画步骤或数据结构可视化**
 """

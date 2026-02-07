@@ -11,10 +11,10 @@ class TeachingScene(Scene):
 
         # Left-side lecture content (bullets with "-")
         # ⚠️ 讲解文字从左上角开始，严禁Y轴居中
-        lecture_texts = [Text(line, font="Noto Sans SC", font_size=25, color="#2C1608") for line in lecture_lines]  # 深棕色普通文字
-        self.lecture = VGroup(*lecture_texts).arrange(DOWN, aligned_edge=LEFT).scale(0.8)
+        lecture_texts = [Text(line, font="Noto Sans SC", font_size=20, color="#2C1608") for line in lecture_lines]  # 深棕色普通文字，font_size=20
+        self.lecture = VGroup(*lecture_texts).arrange(DOWN, aligned_edge=LEFT)
         self.lecture.next_to(self.title, DOWN, buff=1.0).to_edge(LEFT, buff=0.3)
-        self.add(self.lecture) 
+        self.add(self.lecture)
 
         # Define fine-grained animation grid (4x4 grid on right side)
         self.grid = {}
@@ -51,7 +51,6 @@ class TeachingScene(Scene):
                 "stroke_width": 2
             }
         )
-    )
 
     def place_at_grid(self, mobject, grid_pos, scale_factor=1.0):
         mobject.scale(scale_factor)

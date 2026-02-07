@@ -130,7 +130,7 @@ def generate_video_task(
             use_assets=use_assets,
             duration=duration,
             user_profile=user_profile,
-            max_code_token_length=20000,
+            max_code_token_length=50000,  # 提高 token 上限，避免分镜脚本被截断
             max_fix_bug_tries=10,
             max_regenerate_tries=10,
             max_feedback_gen_code_tries=5,

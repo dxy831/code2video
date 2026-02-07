@@ -35,10 +35,10 @@ redis-cli ping
 
 ```bash
 # 终端 1: 启动 Celery Worker
-uv run celery -A src.api.tasks.celery_app worker --loglevel=info --pool=solo -Q video_generation
+uv run python -m celery -A src.api.tasks.celery_app worker --loglevel=info --pool=solo -Q video_generation
 
 # 终端 2: 启动 FastAPI
-uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8080 --reload
+uv run python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### 4. 访问 API 文档
@@ -61,7 +61,8 @@ curl -N -H "Content-Type: application/json" \
     "age": 20,
     "gender": "男",
     "language": "Python",
-    "duration": 5
+    "duration": 5,
+    "extra_info": "我是大一学生，目标是利用寒假实现属于自己的小项目"
   }'
 ```
 
@@ -80,7 +81,3 @@ curl -H "X-API-Key: dev-api-key-12345" \
 | API_KEYS | dev-api-key-12345 | API 密钥（逗号分隔多个） |
 | REDIS_URL | redis://localhost:6379/0 | Redis 连接地址 |
 | DEFAULT_API | claude | 默认 LLM 模型 |
-
-## 许可证
-
-MIT License
