@@ -24,7 +24,7 @@ from ..utils.file_utils import save_video_with_hash
 from ..utils.sse import SyncTaskProgressCallback
 
 
-@celery_app.task(bind=True, name="api.tasks.video_tasks.generate_video_task")
+@celery_app.task(bind=True, name="src.api.tasks.video_tasks.generate_video_task")
 def generate_video_task(
     self,
     request_data: Dict[str, Any],
@@ -53,8 +53,8 @@ def generate_video_task(
     
     try:
         # 导入必要的模块（延迟导入，避免循环依赖）
-        from agent import TeachingVideoAgent, RunConfig
-        from gpt_request import (
+        from src.agent import TeachingVideoAgent, RunConfig
+        from src.gpt_request import (
             request_claude_token,
             request_gpt4o_token,
             request_gpt5_token,
@@ -68,7 +68,7 @@ def generate_video_task(
             parse_profile_with_ai_sync,
             get_default_profile,
         )
-        from utils import get_optimal_workers
+        from src.utils import get_optimal_workers
         
         # 解析请求参数
         knowledge_point = request_data["knowledge_point"]
@@ -81,14 +81,14 @@ def generate_video_task(
         use_assets = request_data.get("use_assets", True)
         api_model = request_data.get("api_model", settings.default_api)
         
-        # 获取 API 函数
+        # 获取 API 函数（键名与 api_config.json 一致）
         api_mapping = {
             "claude": request_claude_token,
-            "gpt-4o": request_gpt4o_token,
-            "gpt-5": request_gpt5_token,
+            "gpt4o": request_gpt4o_token,
+            "gpt5": request_gpt5_token,
             "gpt-41": request_gpt41_token,
             "gpt-o4mini": request_o4mini_token,
-            "Gemini": request_gemini_token,
+            "gemini": request_gemini_token,
         }
         api_func = api_mapping.get(api_model, request_claude_token)
         

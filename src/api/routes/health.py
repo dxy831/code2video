@@ -29,7 +29,7 @@ async def health_check():
         redis_status = f"error: {str(e)}"
     
     # 获取 Worker 数量
-    from utils import get_optimal_workers
+    from src.utils import get_optimal_workers
     workers = settings.max_workers or get_optimal_workers()
     
     return HealthResponse(

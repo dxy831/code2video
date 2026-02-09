@@ -45,6 +45,20 @@ CASES/
 *.mp4
 *.mov
 
+# Generated outputs (videos & metadata)
+data/outputs/videos/*
+data/outputs/metadata/*
+!data/outputs/videos/.gitkeep
+!data/outputs/metadata/.gitkeep
+
+# Lock files
+uv.lock
+
+# Large assets (reference images, demo videos, PDF)
+src/assets/videos/
+src/assets/reference/
+src/assets/code2video-arxiv.pdf
+
 # API keys and secrets
 .env
 *.key

@@ -33,12 +33,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
 
-from gpt_request import *
+from src.gpt_request import *
 from prompts import *
 from prompts.user_profile import UserProfile, get_default_profile, create_profile_from_text, parse_profile_with_ai_sync
-from utils import *
-from scope_refine import *
-from external_assets import process_storyboard_with_assets
+from src.utils import *
+from src.scope_refine import *
+from src.external_assets import process_storyboard_with_assets
 
 
 @dataclass

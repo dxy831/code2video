@@ -11,7 +11,7 @@ celery_app = Celery(
     "code2video",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["api.tasks.video_tasks"]
+    include=["src.api.tasks.video_tasks"]
 )
 
 # Celery 配置
@@ -37,7 +37,7 @@ celery_app.conf.update(
     
     # 任务路由
     task_routes={
-        "api.tasks.video_tasks.*": {"queue": "video_generation"},
+        "src.api.tasks.video_tasks.*": {"queue": "video_generation"},
     },
     
     # 任务时间限制
