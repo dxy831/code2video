@@ -24,6 +24,7 @@ share/python-wheels/
 MANIFEST
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
@@ -51,13 +52,8 @@ data/outputs/metadata/*
 !data/outputs/videos/.gitkeep
 !data/outputs/metadata/.gitkeep
 
-# Lock files
-uv.lock
-
 # Large assets (reference images, demo videos, PDF)
 src/assets/videos/
-src/assets/reference/
-src/assets/code2video-arxiv.pdf
 
 # API keys and secrets
 .env
