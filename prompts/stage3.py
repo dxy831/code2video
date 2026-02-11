@@ -8,7 +8,8 @@ def get_prompt3_code(
     section,
     base_class: str,
     user_profile: Optional[UserProfile] = None,
-    estimated_duration: Optional[int] = None
+    estimated_duration: Optional[int] = None,
+    solution_code: Optional[str] = None
 ):
     """
     生成Manim代码的提示词
@@ -19,6 +20,7 @@ def get_prompt3_code(
         base_class: 基类代码
         user_profile: 用户配置，可选
         estimated_duration: 该章节的预计时长（秒），可选
+        solution_code: 用户提供的标准答案代码（不可修改），可选
     
     Returns:
         完整的提示词字符串
@@ -47,13 +49,30 @@ def get_prompt3_code(
     - **⚠️ 必须严格遵守**: 确保动画总时长接近目标时长 **{estimated_duration} 秒**，严禁过短！
 """
     
+    # 生成标准答案代码提示词片段
+    solution_code_prompt = ""
+    if solution_code:
+        solution_code_prompt = f"""
+    ## 🔴🔴🔴 标准答案代码（严禁修改，必须原封不动使用！）🔴🔴🔴
+    
+    **以下是用户提供的标准答案代码，在视频中展示代码时，必须使用这段代码原文，严禁修改、重写、简化或省略任何部分，一个字都不能改！**
+    
+    ```{target_language.lower()}
+{solution_code}
+    ```
+    
+    **当需要在 Manim 中展示代码块时，必须使用上述标准答案代码的原文内容传入 `self.create_code_block()`。**
+"""
+    
     return f"""
-    你是一位精通 Manim 的 Python 专家。请编写代码生成一个**解释复杂算法执行逻辑**的视频片段。
+    你是一位精通 Manim 的 Python 专家。请编写代码生成一个**讲解编程题目代码答案**的视频片段。
 
     {regenerate_note}
     {duration_guidance}
 
     {profile_prompt}
+    
+    {solution_code_prompt}
 
     ## 🔴🔴🔴 关键规则摘要（必须首先阅读！）🔴🔴🔴
     
@@ -82,7 +101,7 @@ def get_prompt3_code(
     Text("×")         # ❌ 会显示方框
     ```
     
-    ### 🔴🔴🔴 规则 1.1：勾号和叉号的唯一正确写法 🔴🔴🔴
+    ### 🔴🔴🔴 规则 1.1：勾号和叉号的唯一正确写法（违反此规则 = 代码无法渲染 = 生成失败）🔴🔴🔴
     
     **这是最容易犯错的地方！AI 经常错误地使用 Text("✓") 或 Text("✗")！**
     
@@ -98,18 +117,12 @@ def get_prompt3_code(
     **❌ 以下写法全部是错误的（会显示方框或乱码）：**
     ```python
     # ❌ 错误写法 1：直接在 Text 中使用 Unicode 符号
-    Text("✓")           # ❌ 显示方框
     Text("✗")           # ❌ 显示方框
     Text("×")           # ❌ 显示方框
-    Text("√")           # ❌ 显示方框
     
     # ❌ 错误写法 2：在注释中写"勾"或"叉"然后用 Text
     # 红叉表示不需要交换
     wrong_mark = Text("✗", font="Noto Sans SC", font_size=28, color="#C84A2B")  # ❌ 错误！
-    
-    # ❌ 错误写法 3：使用其他 Unicode 字符
-    Text("☑")           # ❌ 显示方框
-    Text("☒")           # ❌ 显示方框
     ```
     
     **🔍 自检：如果你的代码中出现以下任何内容，必须改为 MathTex：**
@@ -215,6 +228,18 @@ def get_prompt3_code(
     ```
 
     ---
+
+    ### 🔴 思路分析章节的特殊要求 🔴
+    如果当前章节属于**思路分析**（标题中包含"思路"、"暴力"、"优化"、"核心思想"等关键词），必须遵守：
+    - **动画必须细致**：每一步推理都要有对应的可视化动画，不能只用文字讲解
+    - **严禁跳步**：不能突然跳到结论，必须展示完整的思考过程
+    - **必须用具体例子**：用数组、表格等具体数据演示思路，先跑例子再总结规律
+    - **核心三问都要体现在动画中**：
+      1. "怎么想到的" → 用动画高亮题目关键条件，展示推理链
+      2. "具体怎么做" → 用具体数据逐步演示算法流程
+      3. "为什么能解决" → 用动画对比说明正确性
+    - **讲解文字必须连贯**：每批 lecture_lines 之间要有逻辑衔接，前因后果清晰
+    - **wait() 要充足**：重要推理步骤后 `self.wait(2)` 以上，给观众思考时间
 
     ### 核心任务：通用算法可视化
     不要硬编码特定的形状，而是根据算法逻辑选择最合适的 Manim 对象。
@@ -360,6 +385,10 @@ def algo(data):
             # 2. Data Structures
             array_group = VGroup(*[Square() for _ in range(5)]).arrange(RIGHT)
             
+            # 3. 勾叉标记 - 🔴 必须用 MathTex，严禁用 Text！
+            correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)  # 绿色勾 ✓
+            wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)        # 红色叉 ✗
+            
             # 3. Execution Trace
             code_lines = code[2]
             highlight = SurroundingRectangle(code_lines[0], color=YELLOW, buff=0.05)
@@ -380,71 +409,38 @@ def algo(data):
     Text("讲解文字", font="Noto Sans SC", font_size=20, color="#2C1608")  # 讲解文字必须 font_size=20
     ```
     
-    **【🚨🚨🚨 数字与数学表达式 - 必须使用 MathTex！🚨🚨🚨】**
+    **【🚨🚨🚨 数学表达式与特殊符号 - 必须用 MathTex！🚨🚨🚨】**
     
-    **🔴🔴🔴 这是最重要的规则之一！违反会导致显示异常！🔴🔴🔴**
+    **完整规则详见上方规则 1 和规则 1.1，以下是快速参考：**
     
-    **核心规则：只要包含以下任何内容，必须使用 MathTex，严禁使用 Text()：**
-    - 数学公式（如 `O(log n)`, `n²`, `2^7`）
-    - 比较表达式（如 `5 > 3`, `mid = 5`）
-    - 复杂度表示（如 `O(n)`, `O(log₂n)`）
-    - 任何包含上标、下标、特殊数学符号的内容
-    
-    **为什么必须用 MathTex？**
-    - Text() 在 Noto Sans SC 字体下**无法正确显示**数学符号（`²`, `⁷`, `×`, `÷`, `log₂` 等会变成**方框**）
-    - MathTex 使用 LaTeX 渲染，效果完美
-    - 这不是建议，是**强制要求**
-    
-    **✅ 简单规则：包含数字/数学符号的表达式 → 必须用 MathTex**
+    **核心原则：** Text() 无法渲染数学符号和特殊符号（会变方框），必须用 MathTex。
     
     ```python
-    # ✅ 正确：纯数学表达式直接用 MathTex
-    MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
-    MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8)
-    MathTex(r"100 \times 10 = 1000", color="#2C1608").scale(0.8)
+    # ✅ 正确示例
+    MathTex(r"O(\log_2 n)", color="#9B6D0B").scale(0.8)        # 复杂度
+    MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)    # 数学表达式
+    MathTex(r"\\checkmark", color="#478211").scale(1.2)          # 绿色勾 ✓
+    MathTex(r"\\times", color="#C84A2B").scale(1.2)              # 红色叉 ✗
     
-    # ✅ 正确：中文 + 数学表达式，用 VGroup 组合
-    explain_text = VGroup(
+    # ✅ 中文+数学混排
+    VGroup(
         Text("因为：", font="Noto Sans SC", font_size=20, color="#2C1608"),
         MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
     ).arrange(RIGHT, buff=0.2)
+    
+    # ❌ 错误：以下写法全部会显示方框！
+    # Text("✓")  Text("✗")  Text("×")  Text("O(n²)")  Text("log₂n")
     ```
     
-    **❌ 绝对禁止：在 Text() 中写数字表达式**
-    ```python
-    # ❌ 错误：用 Text 显示数学表达式
-    Text("2⁷ = 128 > 100")      # ❌ 上标会变方框
-    
-    # ❌ 错误：用注释说"避免LaTeX问题"然后用纯文本 - 这是错误的！
-    # 不要写：if "log₂" in line: text_obj = Text(line, ...)  # ❌ 依然会显示方框
-    ```
-    
-    **🔍 检查清单（生成代码前必须确认）：**
-    - [ ] 讲解文字中是否包含 `log`、`O(`、`×`、`²`、`≤` 等？如果有，必须拆分为 Text + MathTex
-    - [ ] 是否使用了 VGroup(...).arrange(RIGHT, buff=0.1) 来组合？
-    - [ ] MathTex 是否设置了 .scale(0.8) 使大小与 Text 匹配？
-    
-    **【需要用 MathTex 的符号清单】**
+    **【需要用 MathTex 的符号速查表】**
     | 符号类型 | 常见符号 | MathTex 写法 |
     |---------|---------|-------------|
-    | 下标 | ₂, ₃, ₙ | `r"_2"`, `r"_3"`, `r"_n"` |
-    | 上标 | ², ³, ⁿ | `r"^2"`, `r"^3"`, `r"^n"` |
-    | 运算符 | ×, ÷, ±, ≤, ≥, ≠ | `r"\\times"`, `r"\\div"`, `r"\\pm"`, `r"\\leq"`, `r"\\geq"`, `r"\\neq"` |
-    | 对数 | log₂ | `r"\\log_2"` |
-    | 希腊字母 | α, β, θ | `r"\\alpha"`, `r"\\beta"`, `r"\\theta"` |
-    | 箭头 | →, ← | `r"\\rightarrow"`, `r"\\leftarrow"` |
-    | 无穷 | ∞ | `r"\\infty"` |
-    | **勾/叉** | ✓, ✗ | `r"\\checkmark"` (绿勾), `r"\\times"` (红叉) |
+    | 上标/下标 | ², ³, ₂, ₙ | `r"^2"`, `r"^3"`, `r"_2"`, `r"_n"` |
+    | 运算符 | ×, ÷, ≤, ≥, ≠ | `r"\\times"`, `r"\\div"`, `r"\\leq"`, `r"\\geq"`, `r"\\neq"` |
+    | 对数/无穷 | log₂, ∞ | `r"\\log_2"`, `r"\\infty"` |
+    | **勾/叉** | **✓, ✗** | **`r"\\checkmark"`（绿勾）, `r"\\times"`（红叉）** |
     
-    **【勾和叉的正确用法】**
-    ```python
-    # ✅ 正确：用 MathTex 显示勾和叉
-    correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)  # 绿色勾
-    wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)        # 红色叉
-    
-    # ❌ 错误：直接在 Text 中使用会显示方框
-    # Text("✗", font="Noto Sans SC")  # 无法显示！
-    ```
+    **⚠️ 违反此规则 = 显示方框 = 生成失败**
     
     **【配色表】** `背景颜色: #FFFDF4` 【奶油白色背景，严禁使用纯黑背景】
     | 语义 | 文字色 | 背景色 | 边框色 | 样式 |
@@ -481,6 +477,25 @@ def algo(data):
     - **背景保护**: 叠加标签加 `.add_background_rectangle(color=BLACK, opacity=0.8)`
     - **间距预留**: VGroup 使用 `.arrange(DOWN, buff=0.5)`
     - **智能清理**: 新元素出现前，若旧元素会被遮挡且不再使用，先 `FadeOut` 后必须 `self.remove(obj)` 彻底移除
+
+    ### 🔴🔴🔴 生成代码后必须执行的自检（Final Check）🔴🔴🔴
+    
+    **生成完代码后，你必须逐行扫描你的代码，如果发现以下任何模式，必须立即修正：**
+    
+    | 发现这个模式 | 必须改为 |
+    |-------------|---------|
+    | `Text("✓"` 或 `Text("✔"` 或 `Text("√"` | `MathTex(r"\\checkmark", color=...).scale(1.2)` |
+    | `Text("✗"` 或 `Text("✘"` 或 `Text("×"` | `MathTex(r"\\times", color=...).scale(1.2)` |
+    | `Text("O(` 或 `Text("log` | 拆分为 Text + MathTex 的 VGroup |
+    | `Code(code_string=` | 改为 `self.create_code_block(` |
+    
+    **⚠️ 如果你的最终代码中仍然包含 `Text("✓")` 或 `Text("✗")` 或 `Text("×")`，这段代码将无法渲染，视为生成失败。**
+    
+    **自检步骤：**
+    1. 在你的代码中搜索所有 `Text(` 调用
+    2. 检查每个 `Text()` 的内容是否包含 ✓、✗、×、√、O(、log 等
+    3. 如果包含，立即替换为 MathTex 写法
+    4. 确认所有勾叉都使用了 `MathTex(r"\\checkmark"` 或 `MathTex(r"\\times"`
 """
 
 

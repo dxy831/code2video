@@ -71,7 +71,8 @@ def generate_video_task(
         from src.utils import get_optimal_workers
         
         # 解析请求参数
-        knowledge_point = request_data["knowledge_point"]
+        problem_description = request_data["problem_description"]
+        solution_code = request_data["solution_code"]
         age = request_data.get("age")
         gender = request_data.get("gender")
         language = request_data.get("language", "Python")
@@ -130,6 +131,8 @@ def generate_video_task(
             use_assets=use_assets,
             duration=duration,
             user_profile=user_profile,
+            problem_description=problem_description,
+            solution_code=solution_code,
             max_code_token_length=50000,  # 提高 token 上限，避免分镜脚本被截断
             max_fix_bug_tries=10,
             max_regenerate_tries=10,
@@ -145,7 +148,8 @@ def generate_video_task(
         # 创建 Agent
         agent = TeachingVideoAgent(
             idx=0,
-            knowledge_point=knowledge_point,
+            problem_description=problem_description,
+            solution_code=solution_code,
             folder=str(folder_path),
             cfg=cfg,
         )
@@ -202,7 +206,8 @@ def generate_video_task(
         try:
             # 准备元信息
             metadata = {
-                "knowledge_point": knowledge_point,
+                "problem_description": problem_description,
+                "solution_code": solution_code,
                 "language": language,
                 "duration": duration,
                 "age": age,

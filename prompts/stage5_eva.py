@@ -1,15 +1,15 @@
 # prompts/stage5_eva.py
 import json
 
-def get_prompt_aes(knowledge_point):
+def get_prompt_aes(problem_description):
     # 上下文前缀
     prefix = ""
-    if knowledge_point:
+    if problem_description:
         prefix = f"""
-**知识点背景:**
-本教育视频旨在教授: "{knowledge_point}"
+**题目讲解背景:**
+本教育视频旨在讲解以下编程题目的代码答案: "{problem_description}"
 
-请专门评估该视频在教授这一特定知识点方面的有效性。考虑其内容、动画和呈现方式是否适合传达这一特定概念。
+请专门评估该视频在讲解这道编程题目的解题思路和代码实现方面的有效性。考虑其内容、动画和呈现方式是否适合帮助观众理解解题思路和代码逻辑。
 """
 
     return f"""

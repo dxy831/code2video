@@ -5,6 +5,7 @@ from .user_profile import UserProfile, get_default_profile
 
 def get_prompt2_storyboard(
     outline: str,
+    solution_code: str,
     reference_image_path: Optional[str] = None,
     user_profile: Optional[UserProfile] = None
 ):
@@ -13,6 +14,7 @@ def get_prompt2_storyboard(
     
     Args:
         outline: 大纲JSON字符串
+        solution_code: 标准答案代码（用户提供，不可修改）
         reference_image_path: 参考图片路径（可选）
         user_profile: 用户配置，可选
     
@@ -28,7 +30,16 @@ def get_prompt2_storyboard(
     target_language = user_profile.get_language()
     
     base_prompt = f""" 
-    你是一位**硬核算法可视化导演**。请将大纲转化为详细的 Manim 动画脚本。
+    你是一位**编程题目讲解视频的可视化导演**。请将大纲转化为详细的 Manim 动画脚本。
+
+    ## 🔴🔴🔴 最重要的规则 🔴🔴🔴
+    
+    **标准答案代码是用户提供的权威代码，严禁修改、重写、简化或省略任何部分。必须原封不动地使用，一个字都不能改！**
+    
+    ## 标准答案代码（严禁修改，必须原封不动使用）
+    ```{target_language.lower()}
+{solution_code}
+    ```
 
     {profile_prompt}
 
@@ -36,15 +47,17 @@ def get_prompt2_storyboard(
 
     1.  **多维布局策略 (Layout Strategy)**:
         - **智能布局分流 (Smart Layout Branching)**:
-          - **Case A: 纯理论/无代码 (No Code)** -> 保持现状：**左右对半布局**。左侧放讲解文字，右侧放可视化动画。
-          - **Case B: 代码演示场景 (With Code - DEFAULT for Algorithms)** -> **采用 "左侧分割 + 右侧全屏" 布局 (Split-Left Layout)**:
-            - **规则**: 凡是讲解算法具体步骤（循环、判断、交换、递归）的章节，**必须**使用此模式展示代码片段。严禁只在最后才展示代码。
+          - **Case A: 纯理论/无代码 (No Code)** -> 保持现状：**左右对半布局**。左侧放讲解文字，右侧放可视化动画。适用于题目解读、思路分析、总结等章节。
+          - **Case B: 代码演示场景 (With Code - DEFAULT for Code Walkthrough)** -> **采用 "左侧分割 + 右侧全屏" 布局 (Split-Left Layout)**:
+            - **规则**: 凡是讲解代码具体步骤（代码精讲、示例模拟）的章节，**必须**使用此模式展示代码片段。
             - **左上区域 (Top-Left, ~30% height)**: 放置讲解文字 (Lecture Notes)。
             - **左下区域 (Bottom-Left, ~70% height)**: 放置 **{target_language}** 代码片段 (Code Snippet)。
+            - **🔴 代码必须是用户提供的标准答案代码，严禁修改！**
             - **右侧区域 (Right Half, 100% height)**: 放置核心可视化/动画 (Main Visual)。
           - **Case C: 完整代码/纯代码 (Full Code - FINAL SECTION ONLY)**:
             - **规则**: 最后一个章节专门展示完整 **{target_language}** 源码。
             - **布局**: **隐藏左侧文字** (Lecture Notes opacity=0)，将代码对象放大并居中 (`scale(0.8).move_to(ORIGIN)`)。
+            - **🔴 展示的必须是用户提供的完整标准答案代码，一个字都不能改！**
             - **分页**: 如果代码超过 20 行，必须拆分为连续的子场景 (Sub-scenes, e.g., `Scene 12.1`, `Scene 12.2`)。
 
         - **强制分页规则 (Pagination Protocol)**:
@@ -56,32 +69,63 @@ def get_prompt2_storyboard(
           - **Labels (标签)**: 跟随物体的标签必须简短（Max 2-3 words）。
           - **Title**: 每一节的标题固定在左上角或顶部，不可遮挡 Main Visual Area。
 
-    2.  **抽象概念实体化**:
-        - **引用/指针**: 必须画成箭头 (Arrow)。
-        - **递归**: 必须画成**调用栈 (Call Stack)**，用一个个压入的矩形块表示，旁边标注参数值。
-        - **比较/判断**: 必须在屏幕上显示临时的数学不等式（例如 `dist[B] > new_dist`），判定后再消失。
-        - **记忆化/缓存**: 画成一个表格 (Table/Grid)，命中时高亮闪烁。
+    2.  **编程题目讲解专用视觉映射**:
+        - **题目展示**: 题目文本用卡片式布局展示，输入输出示例用表格或对比框展示
+        - **暴力 vs 优化对比**: 用左右分栏或上下对比展示两种思路的差异
+        - **代码高亮**: 讲解代码时，当前讲解的代码段必须高亮，其余部分降低透明度
+        - **数据结构可视化**: DP表用网格/表格，数组用方块序列，指针用箭头
+        - **执行追踪**: 示例模拟时，代码高亮行与右侧数据结构变化必须同步
+        - **引用/指针**: 必须画成箭头 (Arrow)
+        - **比较/判断**: 必须在屏幕上显示临时的数学不等式，判定后再消失
+        - **记忆化/缓存/DP表**: 画成一个表格 (Table/Grid)，当前填充的格子高亮
 
-    3.  **脚本要求**:
-        - 每一句旁白（Lecture Line）必须对应代码的解释。
-        - 每一个动画（Animation）必须对应数据的变化（Create, Transform, FadeOut）。
-        - **节奏控制**：根据用户画像中的动画节奏要求调整。
+    3.  **🔴 思路分析章节的分镜要求（最重要！）🔴**:
+        - 思路分析是整个视频的核心，分镜必须**细致、连贯、不跳步**
+        - **每一步推理都必须有对应的 lecture_line 和 animation**，不能省略中间步骤
+        - **严禁跳跃**：不能直接说"所以我们用XX算法"，必须展示**思考过程**
+        
+        **分镜必须覆盖的"核心三问"：**
+        1. **怎么想到的？** — 从题目特征出发的思考过程
+           - 用动画高亮题目中的关键词/条件，展示"看到XX → 联想到XX方法"的推理链
+           - 如果有暴力法，先用动画展示暴力法运行过程，再分析其瓶颈
+           - 如果没有暴力法，直接从题目特征引导观众发现解题线索
+        2. **具体怎么做？** — 算法流程的逐步可视化
+           - 用具体的示例数据，配合数组/表格/指针等动画，逐步演示算法流程
+           - 每一步都必须有 lecture_line 解释"这一步在做什么、为什么这样做"
+           - 关键数据结构（DP表、栈、队列等）的变化必须用动画展示
+        3. **为什么能解决？** — 正确性的直觉说明
+           - 用动画展示为什么这种方法不会遗漏、为什么结果是对的
+           - 可以用具体例子对比说明
+        
+        **分镜技巧：**
+        - **先用例子带出概念**：先用动画跑一个具体例子，再总结抽象规律
+        - **设置思考停顿**：关键推理步骤后加 `self.wait(2)` 以上
+        - **lecture_lines 要求**：每句旁白都必须承上启下，前因后果清晰
+        - **时长要求**：思路分析相关章节的 estimated_duration 之和应占总时长的 30%-40%
+
+    4.  **脚本要求**:
+        - 每一句旁白（Lecture Line）必须对应代码的解释
+        - 每一个动画（Animation）必须对应数据的变化（Create, Transform, FadeOut）
+        - **节奏控制**：根据用户画像中的动画节奏要求调整
+        - **🔴 所有代码展示必须使用用户提供的标准答案代码原文，严禁修改！**
     
     4.  **时长规划 (Duration Planning)**:
-        - 每个 section 必须包含 `estimated_duration` 字段，单位为**秒**。
+        - 每个 section 必须包含 `estimated_duration` 字段，单位为**秒**
         - 时长估算规则：
           - 每句 lecture_line 约 3-5 秒（根据文字长度）
           - 每个复杂动画约 2-4 秒
           - 简单动画（FadeIn/FadeOut）约 0.5-1 秒
           - 代码展示页面需要额外 3-5 秒供观众阅读
-        - 场景引入 (intro) 通常 30-60 秒
-        - 核心算法演示章节通常 45-90 秒
+        - 题目解读 (intro) 通常 30-60 秒
+        - 代码精讲章节通常 60-120 秒
+        - 示例模拟章节通常 60-120 秒
         - 代码展示章节通常 20-40 秒
         - **重要**：时长估算应保守，宁可多估不可少估，确保观众有足够时间理解
 
     5.  **语言适配要求**:
         - 所有代码示例必须使用 **{target_language}**
         - 代码语法高亮应适配 {target_language} 语法
+        - **🔴 代码内容必须与用户提供的标准答案完全一致！**
 
     ## 输入大纲
     {outline}
@@ -105,7 +149,7 @@ def get_prompt2_storyboard(
         "sections": [
             {
                 "id": "section_0_intro",
-                "title": "场景引入",
+                "title": "题目解读",
                 "estimated_duration": 45,
                 "lecture_lines": [
                     "第一句旁白",
@@ -114,22 +158,22 @@ def get_prompt2_storyboard(
                 "animations": [
                     "Define Visual Layout: Left-Right Split.",
                     "Visual: FadeIn title at top.",
-                    "Visual: Create scene illustration."
+                    "Visual: Create problem description card."
                 ]
             },
             {
-                "id": "section_1",
-                "title": "算法核心步骤",
-                "estimated_duration": 60,
+                "id": "section_3",
+                "title": "代码精讲",
+                "estimated_duration": 90,
                 "lecture_lines": [
-                    "讲解步骤1",
-                    "讲解步骤2",
-                    "讲解步骤3"
+                    "讲解代码第一段",
+                    "讲解代码第二段",
+                    "讲解代码第三段"
                 ],
                 "animations": [
                     "Define Visual Layout: Split-Left Layout for code demonstration.",
-                    "Code: def algorithm():\\n    pass",
-                    "Action: Highlight code line.",
+                    "Code: [展示用户提供的标准答案代码，严禁修改]",
+                    "Action: Highlight code lines 1-5.",
                     "Visual: Create data structure visualization."
                 ]
             }
@@ -160,19 +204,20 @@ def get_prompt2_storyboard(
     - 时长要综合考虑 lecture_lines 数量、animations 复杂度、以及观众理解所需时间
     - 所有章节时长之和应大致符合视频总时长要求
     - **请直接输出 JSON，不要用 ```json ``` 包裹**
+    - **🔴 所有 Code 动画指令中的代码必须是用户提供的标准答案代码原文，严禁修改！**
     """
     return base_prompt
 
 
 def get_prompt_download_assets(storyboard_data):
     return f"""
-分析这份教育视频分镜脚本，识别出最多 4 个**必须**使用下载图标/图片（而非手动绘制形状）来表示的关键视觉元素。
+分析这份编程题目讲解视频分镜脚本，识别出最多 4 个**必须**使用下载图标/图片（而非手动绘制形状）来表示的关键视觉元素。
 
 内容 (Content):
 {storyboard_data}
 
 选择标准 (Selection Criteria):
-1. 仅选择出现在**介绍 (Introduction)** 或 **应用 (Application)** 章节中的元素，且必须满足：
+1. 仅选择出现在**介绍 (Introduction)** 或 **总结 (Summary)** 章节中的元素，且必须满足：
    - 现实世界中可识别的物理对象
    - 视觉特征鲜明，仅用通用几何形状不足以表达
    - 具体的实物，而非抽象概念

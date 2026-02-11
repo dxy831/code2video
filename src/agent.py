@@ -81,18 +81,31 @@ class RunConfig:
     duration: int = 5
     # 用户个性化配置
     user_profile: Optional[UserProfile] = None
+    # 编程题目相关
+    problem_description: str = ""
+    solution_code: str = ""
 
 
 class TeachingVideoAgent:
     def __init__(
         self,
         idx,
-        knowledge_point,
         folder="CASES",
         cfg: Optional[RunConfig] = None,
+        problem_description: str = "",
+        solution_code: str = "",
     ):
         """1. Global parameter"""
-        self.learning_topic = knowledge_point
+        # 编程题目相关：优先使用直接传入的参数，其次使用 cfg 中的配置
+        self.problem_description = problem_description or (cfg.problem_description if cfg else "")
+        self.solution_code = solution_code or (cfg.solution_code if cfg else "")
+        
+        # learning_topic 用于目录命名和日志，从题目描述中提取简短标题
+        if self.problem_description:
+            first_line = self.problem_description.split('\n')[0].split('-')[0].strip()
+            self.learning_topic = first_line[:50] if len(first_line) > 50 else first_line
+        else:
+            self.learning_topic = "未命名题目"
         self.idx = idx
         self.cfg = cfg or RunConfig()
         self.folder = folder  # 修复：保存 folder 路径，供 get_serializable_state 使用
@@ -178,7 +191,13 @@ class TeachingVideoAgent:
 
     def get_serializable_state(self):
         """返回可以序列化保存的Agent状态"""
-        return {"idx": self.idx, "knowledge_point": self.learning_topic, "folder": self.folder, "cfg": self.cfg}
+        return {
+            "idx": self.idx,
+            "folder": self.folder,
+            "cfg": self.cfg,
+            "problem_description": self.problem_description,
+            "solution_code": self.solution_code,
+        }
 
     def generate_outline(self) -> TeachingOutline:
         outline_file = self.output_dir / "outline.json"
@@ -195,7 +214,8 @@ class TeachingVideoAgent:
                 else None
             )
             prompt1 = get_prompt1_outline(
-                knowledge_point=self.learning_topic, 
+                problem_description=self.problem_description,
+                solution_code=self.solution_code,
                 duration=self.duration, 
                 reference_image_path=refer_img_path,
                 user_profile=self.user_profile
@@ -267,6 +287,7 @@ class TeachingVideoAgent:
 
             prompt2 = get_prompt2_storyboard(
                 outline=json.dumps(self.outline.__dict__, ensure_ascii=False, indent=2),
+                solution_code=self.solution_code,
                 reference_image_path=refer_img_path,
                 user_profile=self.user_profile
             )
@@ -397,7 +418,8 @@ class TeachingVideoAgent:
                 section=section, 
                 base_class=base_class,
                 user_profile=self.user_profile,
-                estimated_duration=section.estimated_duration  # 传递预计时长
+                estimated_duration=section.estimated_duration,  # 传递预计时长
+                solution_code=self.solution_code  # 传递标准答案代码
             )
 
         response = self._request_api_and_track_tokens(code_gen_prompt, max_tokens=self.max_code_token_length)
@@ -874,6 +896,8 @@ class TeachingVideoAgent:
                 [ffmpeg_exe, "-y", "-f", "concat", "-safe", "0", "-i", str(video_list_file), "-c", "copy", str(output_path)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
             )
 
             if result.returncode == 0:
@@ -904,57 +928,81 @@ class TeachingVideoAgent:
             return None
 
 
-def process_knowledge_point(idx, kp, folder_path: Path, cfg: RunConfig):
-    print(f"\n🚀 正在处理知识点: {kp}")
+def process_single_problem(idx: int, problem: Dict[str, str], folder_path: Path, cfg: RunConfig):
+    """处理单个编程题目（CLI 批量模式下使用）
+    
+    Args:
+        idx: 题目索引
+        problem: 包含 problem_description 和 solution_code 的字典
+        folder_path: 输出目录
+        cfg: 运行配置
+    """
+    desc = problem["problem_description"]
+    code = problem.get("solution_code", "")
+    label = desc[:50] if len(desc) > 50 else desc
+    
+    print(f"\n🚀 正在处理题目 [{idx}]: {label}")
     start_time = time.time()
 
     agent = TeachingVideoAgent(
         idx=idx,
-        knowledge_point=kp,
         folder=folder_path,
         cfg=cfg,
+        problem_description=desc,
+        solution_code=code,
     )
     video_path = agent.GENERATE_VIDEO()
 
     duration_minutes = (time.time() - start_time) / 60
     total_tokens = agent.token_usage["total_tokens"]
 
-    print(f"✅ 知识点 '{kp}' 处理完成。耗时: {duration_minutes:.2f} 分钟, Token 使用: {total_tokens}")
-    return kp, video_path, duration_minutes, total_tokens
+    print(f"✅ 题目 [{idx}] 处理完成。耗时: {duration_minutes:.2f} 分钟, Token 使用: {total_tokens}")
+    return label, video_path, duration_minutes, total_tokens
 
 
 def process_batch(batch_data, cfg: RunConfig):
-    """Process a batch of knowledge points (serial within a batch)"""
-    batch_idx, kp_batch, folder_path = batch_data
+    """Process a batch of problems (serial within a batch)"""
+    batch_idx, problem_batch, folder_path = batch_data
     results = []
-    print(f"第 {batch_idx + 1} 批次开始处理 {len(kp_batch)} 个知识点")
+    print(f"第 {batch_idx + 1} 批次开始处理 {len(problem_batch)} 个题目")
 
-    for local_idx, (idx, kp) in enumerate(kp_batch):
+    for local_idx, (idx, problem) in enumerate(problem_batch):
         try:
             if local_idx > 0:
                 delay = random.uniform(3, 6)
-                print(f"⏳ 第 {batch_idx + 1} 批次在处理 {kp} 前等待 {delay:.1f} 秒...")
+                print(f"⏳ 第 {batch_idx + 1} 批次等待 {delay:.1f} 秒...")
                 time.sleep(delay)
-            results.append(process_knowledge_point(idx, kp, folder_path, cfg))
+            results.append(process_single_problem(idx, problem, folder_path, cfg))
         except Exception as e:
-            print(f"❌ 第 {batch_idx + 1} 批次处理 {kp} 失败: {e}")
-            results.append((kp, None, 0, 0))
+            label = problem.get("problem_description", "unknown")[:50]
+            print(f"❌ 第 {batch_idx + 1} 批次处理 {label} 失败: {e}")
+            results.append((label, None, 0, 0))
     return batch_idx, results
 
 
 def run_Code2Video(
-    knowledge_points: List[str], folder_path: Path, parallel=True, batch_size=3, max_workers=8, cfg: RunConfig = RunConfig()
+    problems: List[Dict[str, str]], folder_path: Path, parallel=True, batch_size=3, max_workers=8, cfg: RunConfig = RunConfig()
 ):
+    """批量处理编程题目，生成讲解视频
+    
+    Args:
+        problems: 题目列表，每个元素为 {"problem_description": "...", "solution_code": "..."}
+        folder_path: 输出目录
+        parallel: 是否并行
+        batch_size: 每批处理数量
+        max_workers: 最大并行进程数
+        cfg: 运行配置
+    """
     all_results = []
 
     if parallel:
         batches = []
-        for i in range(0, len(knowledge_points), batch_size):
-            batch = [(i + j, kp) for j, kp in enumerate(knowledge_points[i : i + batch_size])]
+        for i in range(0, len(problems), batch_size):
+            batch = [(i + j, p) for j, p in enumerate(problems[i : i + batch_size])]
             batches.append((i // batch_size, batch, folder_path))
 
         print(
-            f"🔄 并行批处理模式: {len(batches)} 个批次，每批 {batch_size} 个知识点，{max_workers} 个并发批次"
+            f"🔄 并行批处理模式: {len(batches)} 个批次，每批 {batch_size} 个题目，{max_workers} 个并发批次"
         )
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(process_batch, batch, cfg): batch for batch in batches}
@@ -964,20 +1012,21 @@ def run_Code2Video(
                     all_results.extend(batch_results)
                     print(f"✅ 第 {batch_idx + 1} 批次完成")
                 except Exception as e:
-                    print(f"❌ 第 {batch_idx + 1} 批次处理失败: {e}")
+                    print(f"❌ 批次处理失败: {e}")
     else:
         print("🔄 串行处理模式")
-        for idx, kp in enumerate(knowledge_points):
+        for idx, problem in enumerate(problems):
             try:
-                all_results.append(process_knowledge_point(idx, kp, folder_path, cfg))
+                all_results.append(process_single_problem(idx, problem, folder_path, cfg))
             except Exception as e:
-                print(f"❌ 串行处理 {kp} 失败: {e}")
-                all_results.append((kp, None, 0, 0))
+                label = problem.get("problem_description", "unknown")[:50]
+                print(f"❌ 串行处理 {label} 失败: {e}")
+                all_results.append((label, None, 0, 0))
 
     successful_runs = [r for r in all_results if r[1] is not None]
     total_runs = len(all_results)
     if not successful_runs:
-        print("\n所有知识点处理失败，无法计算平均值。")
+        print("\n所有题目处理失败，无法计算平均值。")
         return
 
     total_duration = sum(r[2] for r in successful_runs)
@@ -985,10 +1034,10 @@ def run_Code2Video(
     num_successful = len(successful_runs)
 
     print("\n" + "=" * 50)
-    print(f"   总知识点数: {total_runs}")
+    print(f"   总题目数: {total_runs}")
     print(f"   成功处理: {num_successful} ({num_successful/total_runs*100:.1f}%)")
-    print(f"   平均耗时 [分]: {total_duration/num_successful:.2f} 分钟/知识点")
-    print(f"   平均 Token 消耗: {total_tokens_consumed/num_successful:,.0f} tokens/知识点")
+    print(f"   平均耗时 [分]: {total_duration/num_successful:.2f} 分钟/题目")
+    print(f"   平均 Token 消耗: {total_tokens_consumed/num_successful:,.0f} tokens/题目")
     print("=" * 50)
 
 
@@ -1021,7 +1070,7 @@ def build_and_parse_args():
         type=str,
         default="TEST",
     )
-    parser.add_argument("--knowledge_file", type=str, default="long_video_topics_list.json")
+    parser.add_argument("--problems_file", type=str, help="批量题目 JSON 文件路径（相对于 json_files 目录）", default=None)
     parser.add_argument("--iconfinder_api_key", type=str, default="")
 
     # Basically invariant parameters
@@ -1042,7 +1091,8 @@ def build_and_parse_args():
     parser.add_argument("--no_parallel", action="store_false", dest="parallel")
     parser.add_argument("--parallel_group_num", type=int, default=3)
     parser.add_argument("--max_concepts", type=int, help="Limit # concepts for a quick run, -1 for all", default=-1)
-    parser.add_argument("--knowledge_point", type=str, help="if knowledge_file not given, can ignore", default=None)
+    parser.add_argument("--problem_description", type=str, help="编程题目描述（单题模式）", default=None)
+    parser.add_argument("--solution_code", type=str, help="标准答案代码（单题模式）", default=None)
     
     # 新增参数：最大并行工作进程数
     parser.add_argument("--max_workers", type=int, default=None, help="Force specific number of workers, overriding auto-detection")
@@ -1074,34 +1124,24 @@ if __name__ == "__main__":
     else:
         print("警告: 配置文件中未找到 Iconfinder API 密钥。使用默认值 (None)。")
 
-    if args.knowledge_point:
-        print(f"🔄 单知识点模式: {args.knowledge_point}")
-        knowledge_points = [args.knowledge_point]
-        args.parallel_group_num = 1
-    elif args.knowledge_file:
-        with open(Path(__file__).resolve().parent / "json_files" / args.knowledge_file, "r", encoding="utf-8") as f:
-            knowledge_points = json.load(f)
-            if args.max_concepts is not None:
-                knowledge_points = knowledge_points[: args.max_concepts]
-    else:
-        raise ValueError("必须提供 --knowledge_point 或 --knowledge_file")
+    # 判断运行模式
+    single_mode = bool(args.problem_description)
+
+    if not single_mode and not args.problems_file:
+        raise ValueError("必须提供 --problem_description（单题模式）或 --problems_file（批量模式）")
 
     # 创建用户个性化配置
     if args.user_profile:
         print(f"🧠 正在使用 AI 解析用户画像...")
         print(f"📝 用户输入: {args.user_profile}")
         
-        # 先创建基础的用户配置
         user_profile = create_profile_from_text(args.user_profile)
-        
-        # 使用 AI 解析用户画像
         parsed_profile = parse_profile_with_ai_sync(args.user_profile, api)
         
         if parsed_profile:
             user_profile.update_with_parsed_profile(parsed_profile)
             print(f"✅ AI 解析成功！")
             
-            # 打印解析结果摘要
             summary = parsed_profile.get("user_summary", {})
             print(f"📋 解析结果:")
             print(f"   - 年龄段: {summary.get('age_group', '未知')}")
@@ -1129,15 +1169,55 @@ if __name__ == "__main__":
         duration=args.duration,
         user_profile=user_profile,
     )
-    
-    # 优先使用命令行参数指定的 workers，否则自动计算
-    real_workers = args.max_workers if args.max_workers is not None else get_optimal_workers()
 
-    run_Code2Video(
-        knowledge_points,
-        folder,
-        parallel=args.parallel,
-        batch_size=max(1, int(len(knowledge_points) / args.parallel_group_num)),
-        max_workers=real_workers,
-        cfg=cfg,
-    )
+    if single_mode:
+        # ===== 单题模式 =====
+        print(f"🔄 单题模式: 生成单个编程题讲解视频")
+        start_time = time.time()
+
+        agent = TeachingVideoAgent(
+            idx=0,
+            folder=folder,
+            cfg=cfg,
+            problem_description=args.problem_description,
+            solution_code=args.solution_code or "",
+        )
+        video_path = agent.GENERATE_VIDEO()
+
+        duration_minutes = (time.time() - start_time) / 60
+        total_tokens = agent.token_usage["total_tokens"]
+
+        if video_path:
+            print(f"\n🎉 视频生成成功: {video_path}")
+        else:
+            print(f"\n❌ 视频生成失败")
+        print(f"   耗时: {duration_minutes:.2f} 分钟, Token 使用: {total_tokens}")
+    else:
+        # ===== 批量模式（从 JSON 文件读取题目列表） =====
+        # JSON 文件格式: [{"problem_description": "...", "solution_code": "..."}, ...]
+        problems_path = Path(__file__).resolve().parent / "json_files" / args.problems_file
+        with open(problems_path, "r", encoding="utf-8") as f:
+            problems = json.load(f)
+            if args.max_concepts is not None and args.max_concepts > 0:
+                problems = problems[: args.max_concepts]
+
+        # 验证格式
+        for i, p in enumerate(problems):
+            if not isinstance(p, dict) or "problem_description" not in p:
+                raise ValueError(
+                    f"题目 [{i}] 格式错误：每个元素必须是包含 'problem_description' 字段的字典。"
+                    f"\n期望格式: {{\"problem_description\": \"...\", \"solution_code\": \"...\"}}"
+                )
+
+        print(f"📋 已加载 {len(problems)} 个题目")
+
+        real_workers = args.max_workers if args.max_workers is not None else get_optimal_workers()
+
+        run_Code2Video(
+            problems,
+            folder,
+            parallel=args.parallel,
+            batch_size=max(1, int(len(problems) / args.parallel_group_num)),
+            max_workers=real_workers,
+            cfg=cfg,
+        )

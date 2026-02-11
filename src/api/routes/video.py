@@ -96,19 +96,18 @@ async def generate_video(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    生成教学视频
+    生成编程题目讲解视频
     
-    接收知识点和用户配置，异步生成教学视频，通过 SSE 流式返回进度。
+    接收编程题目描述和标准答案代码，异步生成讲解视频，通过 SSE 流式返回进度。
     
     **请求示例**:
     ```json
     {
-        "knowledge_point": "二分搜索",
+        "problem_description": "给定一个排序数组和一个目标值，在数组中找到目标值...",
+        "solution_code": "def searchInsert(nums, target):\\n    left, right = 0, len(nums) - 1\\n    ...",
         "age": 20,
-        "gender": "男",
         "language": "Python",
-        "duration": 5,
-        "extra_info": "我是大学生，有一定编程基础"
+        "duration": 5
     }
     ```
     
@@ -129,7 +128,8 @@ async def generate_video(
     
     # 准备请求数据
     request_data = {
-        "knowledge_point": request.knowledge_point,
+        "problem_description": request.problem_description,
+        "solution_code": request.solution_code,
         "age": request.age,
         "gender": request.gender,
         "language": request.language or settings.default_language,

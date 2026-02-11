@@ -162,7 +162,8 @@ async def get_file_metadata(
     **响应示例**:
     ```json
     {
-        "knowledge_point": "二分搜索",
+        "problem_description": "给定一个排序数组和一个目标值...",
+        "solution_code": "def searchInsert(nums, target): ...",
         "language": "Python",
         "duration": 5,
         "token_usage": {...},

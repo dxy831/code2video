@@ -19,11 +19,16 @@ class EventType(str, Enum):
 class VideoGenerateRequest(BaseModel):
     """视频生成请求模型"""
     
-    # 必填字段
-    knowledge_point: str = Field(
-        ..., 
-        description="要生成视频的知识点",
-        examples=["二分搜索", "快速排序", "递归"]
+    # 必填字段：编程题目 + 标准答案代码
+    problem_description: str = Field(
+        ...,
+        description="编程题目描述（包含题目名称、描述、示例、提示等）",
+        examples=["给定一个排序数组和一个目标值，在数组中找到目标值并返回其索引。"]
+    )
+    solution_code: str = Field(
+        ...,
+        description="题目的标准答案代码（严禁修改，原封不动展示）",
+        examples=["def binary_search(nums, target):\n    left, right = 0, len(nums) - 1\n    ..."]
     )
     
     # 结构化可选字段
@@ -75,7 +80,8 @@ class VideoGenerateRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "knowledge_point": "二分搜索",
+                "problem_description": "给定一个排序数组和一个目标值，在数组中找到目标值并返回其索引。如果目标值不存在于数组中，返回它将会被按顺序插入的位置。\n\n示例 1：输入: nums = [1,3,5,6], target = 5 输出: 2",
+                "solution_code": "def searchInsert(nums, target):\n    left, right = 0, len(nums) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if nums[mid] == target:\n            return mid\n        elif nums[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return left",
                 "age": 20,
                 "gender": "男",
                 "language": "Python",
