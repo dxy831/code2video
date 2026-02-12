@@ -25,6 +25,14 @@ def get_profile_analysis_prompt(user_profile_text: str) -> str:
 ## 用户输入的画像描述
 {user_profile_text}
 
+## 重要规则
+- **难度级别必须严格遵循用户的明确指定**。如果用户描述中包含明确的难度要求（如"入门"、"中等"、"进阶"、"简单"、"难"等），你必须原样采用，不得根据用户背景或学习目标自行调整。
+- 难度映射参考：
+  - "简单"/"入门"/"偏简单入门" → "入门"
+  - "中等"/"内容难度为中等" → "中等"
+  - "进阶"/"高级"/"偏高级进阶"/"难" → "进阶"
+- 只有在用户完全未提及难度时，才根据用户背景合理推断。
+
 ## 请从以下维度分析并输出 JSON 格式
 
 请严格按照以下 JSON 格式输出，不要添加任何其他文字：
@@ -35,7 +43,7 @@ def get_profile_analysis_prompt(user_profile_text: str) -> str:
         "background": "推断的知识背景和已有储备",
         "learning_goal": "用户的学习目标",
         "target_language": "用户选择的编程语言（如未指定则默认Python）",
-        "difficulty_preference": "用户期望的难度（入门/进阶/专家）"
+        "difficulty_preference": "用户期望的难度（入门/中等/进阶）—— 必须严格遵循用户描述中明确指定的难度级别，不得自行调整"
     }},
     "stage1_outline_guidance": {{
         "audience_description": "一句话描述目标受众，用于大纲生成",
@@ -186,7 +194,7 @@ class UserProfile:
                 "background": "有一定编程基础",
                 "learning_goal": "学习算法与数据结构",
                 "target_language": "Python",
-                "difficulty_preference": "进阶"
+                "difficulty_preference": "中等"
             },
             "stage1_outline_guidance": {
                 "audience_description": "有编程基础的大学生",
@@ -287,54 +295,6 @@ def create_profile_from_text(profile_text: str) -> UserProfile:
         UserProfile 实例（带有默认解析结果，需要后续调用 AI 更新）
     """
     return UserProfile(raw_profile_text=profile_text)
-
-
-async def parse_profile_with_ai(
-    profile_text: str, 
-    api_function: Callable
-) -> Dict[str, Any]:
-    """
-    使用 AI 解析用户画像文本（异步版本）
-    
-    Args:
-        profile_text: 用户输入的自然语言描述
-        api_function: API 调用函数
-        
-    Returns:
-        解析后的用户画像字典
-    """
-    import json
-    
-    prompt = get_profile_analysis_prompt(profile_text)
-    
-    try:
-        response, _ = api_function(prompt, max_tokens=2000)
-        
-        # 尝试从响应中提取文本
-        try:
-            content = response.candidates[0].content.parts[0].text
-        except Exception:
-            try:
-                content = response.choices[0].message.content
-            except Exception:
-                content = str(response)
-        
-        # 提取 JSON
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        
-        # 尝试解析 JSON
-        parsed = json.loads(content)
-        return parsed
-        
-    except json.JSONDecodeError as e:
-        print(f"⚠️ AI 解析用户画像失败（JSON解析错误）: {e}")
-        return None
-    except Exception as e:
-        print(f"⚠️ AI 解析用户画像失败: {e}")
-        return None
 
 
 def parse_profile_with_ai_sync(

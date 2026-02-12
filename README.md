@@ -1,3 +1,6 @@
+curl -N -X POST http://localhost:8081/api/v1/generate-video -H "Content-Type: application/json" -H "X-API-Key: dev-api-key-12345" -d @request.json
+
+
 # Code2Video Docker 部署指南
 
 本文档介绍如何使用 Docker 部署 Code2Video API 服务。
@@ -14,7 +17,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/dxy831/code2vedio.git
+git clone https://github.com/dxy831/code2video.git
 cd code2video
 ```
 
@@ -91,7 +94,7 @@ nano .env
 |------|------|--------|
 | `API_KEYS` | API 认证密钥（前端调用时需要） | `dev-api-key-12345` |
 | `DEFAULT_API` | 默认 LLM（claude/gpt4o/gpt-41/gpt5/gemini） | `claude` |
-| `API_PORT` | API 服务端口 | `8080` |
+| `API_PORT` | API 服务端口 | `8081` |
 | `DEBUG` | 调试模式 | `false` |
 
 ### 4. 启动服务
@@ -108,10 +111,10 @@ docker-compose logs -f
 
 ```bash
 # 健康检查
-curl http://localhost:8080/health
+curl http://localhost:8081/health
 
 # 查看 API 文档
-# 浏览器打开: http://localhost:8080/docs
+# 浏览器打开: http://localhost:8081/docs
 ```
 
 ## 📡 API 使用
@@ -121,7 +124,7 @@ curl http://localhost:8080/health
 所有 `/api/v1/*` 接口需要在请求头中携带 API Key：
 
 ```bash
-curl -H "X-API-Key: dev-api-key-12345" http://localhost:8080/api/v1/...
+curl -H "X-API-Key: dev-api-key-12345" http://localhost:8081/api/v1/...
 ```
 
 ---
@@ -144,7 +147,7 @@ curl -H "X-API-Key: dev-api-key-12345" http://localhost:8080/api/v1/...
 ### 1. 服务信息
 
 ```bash
-curl http://localhost:8080/
+curl http://localhost:8081/
 ```
 
 **响应示例**：
@@ -162,7 +165,7 @@ curl http://localhost:8080/
 ### 2. 健康检查
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8081/health
 ```
 
 **响应示例**：
@@ -184,7 +187,7 @@ curl -N \
   -H "Content-Type: application/json" \
   -H "Accept: text/event-stream" \
   -H "X-API-Key: dev-api-key-12345" \
-  -X POST http://localhost:8080/api/v1/generate-video \
+  -X POST http://localhost:8081/api/v1/generate-video \
   -d '{
     "knowledge_point": "冒泡排序",
     "age": 20,
@@ -254,7 +257,7 @@ data: {"task_id":"uuid","message":"视频渲染失败: 内存不足"}
 
 ```bash
 curl -H "X-API-Key: dev-api-key-12345" \
-  http://localhost:8080/api/v1/tasks/{task_id}
+  http://localhost:8081/api/v1/tasks/{task_id}
 ```
 
 **响应示例**：
@@ -286,13 +289,13 @@ curl -H "X-API-Key: dev-api-key-12345" \
 ```bash
 # 下载完整文件
 curl -H "X-API-Key: dev-api-key-12345" \
-  http://localhost:8080/api/v1/files/a1b2c3...sha256.mp4 \
+  http://localhost:8081/api/v1/files/a1b2c3...sha256.mp4 \
   -o video.mp4
 
 # 断点续传（Range 请求）
 curl -H "X-API-Key: dev-api-key-12345" \
   -H "Range: bytes=0-1023" \
-  http://localhost:8080/api/v1/files/a1b2c3...sha256.mp4 \
+  http://localhost:8081/api/v1/files/a1b2c3...sha256.mp4 \
   -o video_part.mp4
 ```
 
@@ -312,7 +315,7 @@ curl -H "X-API-Key: dev-api-key-12345" \
 
 ```bash
 curl -I -H "X-API-Key: dev-api-key-12345" \
-  http://localhost:8080/api/v1/files/a1b2c3...sha256.mp4
+  http://localhost:8081/api/v1/files/a1b2c3...sha256.mp4
 ```
 
 **响应头**：
@@ -329,7 +332,7 @@ Accept-Ranges: bytes
 
 ```bash
 curl -H "X-API-Key: dev-api-key-12345" \
-  http://localhost:8080/api/v1/files/a1b2c3...sha256.mp4/metadata
+  http://localhost:8081/api/v1/files/a1b2c3...sha256.mp4/metadata
 ```
 
 **响应示例**：
@@ -410,7 +413,7 @@ docker-compose up -d --build
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
 │  │     API      │  │    Worker    │  │    Redis     │   │
 │  │  (FastAPI)   │  │   (Celery)   │  │   (队列)     │   │
-│  │   :8080      │  │              │  │   :6379      │   │
+│  │   :8081      │  │              │  │   :6379      │   │
 │  └──────┬───────┘  └──────┬───────┘  └──────────────┘   │
 │         │                 │                              │
 │         └────────┬────────┘                              │
@@ -424,7 +427,7 @@ docker-compose up -d --build
 
 | 服务 | 说明 | 端口 |
 |------|------|------|
-| **api** | FastAPI 服务，处理 HTTP 请求 | 8080 |
+| **api** | FastAPI 服务，处理 HTTP 请求 | 8081 |
 | **worker** | Celery Worker，执行视频生成任务 | - |
 | **redis** | 消息队列 + 任务结果存储 | 6379 |
 

@@ -8,6 +8,13 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 
+class DifficultyLevel(str, Enum):
+    """难度等级枚举"""
+    SIMPLE = "simple"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
 class EventType(str, Enum):
     """SSE 事件类型"""
     RUNNING = "running"
@@ -55,6 +62,12 @@ class VideoGenerateRequest(BaseModel):
         description="视频时长（分钟）"
     )
     
+    difficulty: Optional[DifficultyLevel] = Field(
+        DifficultyLevel.MEDIUM,
+        description="内容难度等级（simple/medium/hard）",
+        examples=["simple", "medium", "hard"]
+    )
+    
     # 非结构化字段（自然语言描述）
     extra_info: Optional[str] = Field(
         None,
@@ -86,6 +99,7 @@ class VideoGenerateRequest(BaseModel):
                 "gender": "男",
                 "language": "Python",
                 "duration": 5,
+                "difficulty": "medium",
                 "extra_info": "我是大学生，有一定编程基础，想深入理解算法"
             }
         }

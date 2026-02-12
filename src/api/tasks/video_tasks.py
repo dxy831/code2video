@@ -66,7 +66,6 @@ def generate_video_task(
             UserProfile,
             create_profile_from_text,
             parse_profile_with_ai_sync,
-            get_default_profile,
         )
         from src.utils import get_optimal_workers
         
@@ -77,6 +76,7 @@ def generate_video_task(
         gender = request_data.get("gender")
         language = request_data.get("language", "Python")
         duration = request_data.get("duration", 5)
+        difficulty = request_data.get("difficulty", "medium")
         extra_info = request_data.get("extra_info", "")
         use_feedback = request_data.get("use_feedback", True)
         use_assets = request_data.get("use_assets", True)
@@ -97,6 +97,14 @@ def generate_video_task(
         task_id = callback.on_stage_start("parse_profile", "正在解析用户画像。")
         
         try:
+            # 难度映射为自然语言描述
+            difficulty_desc_map = {
+                "simple": "内容难度偏简单入门",
+                "medium": "内容难度为中等",
+                "hard": "内容难度偏高级进阶",
+            }
+            difficulty_desc = difficulty_desc_map.get(difficulty, "内容难度为中等")
+            
             # 构建用户画像文本
             profile_parts = []
             if age:
@@ -104,19 +112,17 @@ def generate_video_task(
             if gender:
                 profile_parts.append(f"性别{gender}")
             profile_parts.append(f"选择的编程语言是{language}")
+            profile_parts.append(difficulty_desc)
             if extra_info:
                 profile_parts.append(extra_info)
             
-            profile_text = "，".join(profile_parts) if profile_parts else ""
+            profile_text = "，".join(profile_parts)
             
-            if profile_text:
-                user_profile = create_profile_from_text(profile_text)
-                # 使用 AI 解析用户画像
-                parsed_profile = parse_profile_with_ai_sync(profile_text, api_func)
-                if parsed_profile:
-                    user_profile.update_with_parsed_profile(parsed_profile)
-            else:
-                user_profile = get_default_profile()
+            user_profile = create_profile_from_text(profile_text)
+            # 使用 AI 解析用户画像
+            parsed_profile = parse_profile_with_ai_sync(profile_text, api_func)
+            if parsed_profile:
+                user_profile.update_with_parsed_profile(parsed_profile)
             
             callback.on_stage_finish(task_id, "用户画像解析成功。")
         except Exception as e:
@@ -133,7 +139,7 @@ def generate_video_task(
             user_profile=user_profile,
             problem_description=problem_description,
             solution_code=solution_code,
-            max_code_token_length=50000,  # 提高 token 上限，避免分镜脚本被截断
+            max_code_token_length=80000,  # 提高 token 上限，避免分镜脚本被截断
             max_fix_bug_tries=10,
             max_regenerate_tries=10,
             max_feedback_gen_code_tries=5,
@@ -210,6 +216,7 @@ def generate_video_task(
                 "solution_code": solution_code,
                 "language": language,
                 "duration": duration,
+                "difficulty": difficulty,
                 "age": age,
                 "gender": gender,
                 "extra_info": extra_info,

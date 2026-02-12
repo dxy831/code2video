@@ -134,6 +134,7 @@ async def generate_video(
         "gender": request.gender,
         "language": request.language or settings.default_language,
         "duration": request.duration or settings.default_duration,
+        "difficulty": request.difficulty.value if request.difficulty else "medium",
         "extra_info": request.extra_info,
         "use_feedback": request.use_feedback,
         "use_assets": request.use_assets,

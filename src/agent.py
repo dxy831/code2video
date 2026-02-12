@@ -1104,6 +1104,13 @@ def build_and_parse_args():
         default="",
         help="用户画像的自然语言描述，例如：'我是17岁的高中生，想要的学习难度是入门级，选择的编程语言是Python，目标是利用暑假成功入门Python'"
     )
+    parser.add_argument(
+        "--difficulty",
+        type=str,
+        choices=["simple", "medium", "hard"],
+        default="medium",
+        help="内容难度等级（simple/medium/hard），默认 medium"
+    )
 
     return parser.parse_args()
 
@@ -1131,12 +1138,22 @@ if __name__ == "__main__":
         raise ValueError("必须提供 --problem_description（单题模式）或 --problems_file（批量模式）")
 
     # 创建用户个性化配置
+    # 难度映射为自然语言描述
+    difficulty_desc_map = {
+        "simple": "内容难度偏简单入门",
+        "medium": "内容难度为中等",
+        "hard": "内容难度偏高级进阶",
+    }
+    difficulty_desc = difficulty_desc_map.get(args.difficulty, "内容难度为中等")
+
     if args.user_profile:
+        # 将 difficulty 自然语言描述追加到用户画像文本
+        profile_text = f"{args.user_profile}，{difficulty_desc}"
         print(f"🧠 正在使用 AI 解析用户画像...")
-        print(f"📝 用户输入: {args.user_profile}")
+        print(f"📝 用户输入: {profile_text}")
         
-        user_profile = create_profile_from_text(args.user_profile)
-        parsed_profile = parse_profile_with_ai_sync(args.user_profile, api)
+        user_profile = create_profile_from_text(profile_text)
+        parsed_profile = parse_profile_with_ai_sync(profile_text, api)
         
         if parsed_profile:
             user_profile.update_with_parsed_profile(parsed_profile)
@@ -1152,8 +1169,13 @@ if __name__ == "__main__":
         else:
             print(f"⚠️ AI 解析失败，使用默认解析结果")
     else:
-        print(f"📋 未提供用户画像，使用默认配置")
-        user_profile = get_default_profile()
+        # 即使没有用户画像文本，也将 difficulty 传入
+        profile_text = difficulty_desc
+        print(f"📋 未提供用户画像，使用难度配置: {difficulty_desc}")
+        user_profile = create_profile_from_text(profile_text)
+        parsed_profile = parse_profile_with_ai_sync(profile_text, api)
+        if parsed_profile:
+            user_profile.update_with_parsed_profile(parsed_profile)
 
     cfg = RunConfig(
         api=api,
