@@ -191,6 +191,7 @@ curl -N \
     "gender": "男",
     "language": "Python",
     "duration": 5,
+    "difficulty": "medium",
     "extra_info": "我是大一学生，有一定编程基础，目标是利用寒假完成一个小项目"
   }'
 ```
@@ -204,6 +205,7 @@ curl -N \
 | `gender` | string | ❌ | 用户性别（"男"/"女"） |
 | `language` | string | ❌ | 编程语言，默认 "Python" |
 | `duration` | int | ❌ | 视频时长（分钟），范围 1-30，默认 5 |
+| `difficulty` | string | ❌ | 内容难度等级（"simple"/"medium"/"hard"），默认 "medium" |
 | `extra_info` | string | ❌ | 额外的用户信息描述（自然语言） |
 | `use_feedback` | bool | ❌ | 是否使用 MLLM 反馈优化，默认 true |
 | `use_assets` | bool | ❌ | 是否使用外部素材，默认 true |

@@ -270,7 +270,7 @@ class UserProfile:
 
 def get_default_profile() -> UserProfile:
     """获取默认用户配置"""
-    default_text = "我是大学生，有一定编程基础，想学习算法与数据结构，使用Python，难度为进阶级别。"
+    default_text = "我是大学生，有一定编程基础，想学习算法与数据结构，使用Python，难度为中等级别。"
     profile = UserProfile(raw_profile_text=default_text)
     return profile
 
@@ -287,54 +287,6 @@ def create_profile_from_text(profile_text: str) -> UserProfile:
         UserProfile 实例（带有默认解析结果，需要后续调用 AI 更新）
     """
     return UserProfile(raw_profile_text=profile_text)
-
-
-async def parse_profile_with_ai(
-    profile_text: str, 
-    api_function: Callable
-) -> Dict[str, Any]:
-    """
-    使用 AI 解析用户画像文本（异步版本）
-    
-    Args:
-        profile_text: 用户输入的自然语言描述
-        api_function: API 调用函数
-        
-    Returns:
-        解析后的用户画像字典
-    """
-    import json
-    
-    prompt = get_profile_analysis_prompt(profile_text)
-    
-    try:
-        response, _ = api_function(prompt, max_tokens=2000)
-        
-        # 尝试从响应中提取文本
-        try:
-            content = response.candidates[0].content.parts[0].text
-        except Exception:
-            try:
-                content = response.choices[0].message.content
-            except Exception:
-                content = str(response)
-        
-        # 提取 JSON
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-        
-        # 尝试解析 JSON
-        parsed = json.loads(content)
-        return parsed
-        
-    except json.JSONDecodeError as e:
-        print(f"⚠️ AI 解析用户画像失败（JSON解析错误）: {e}")
-        return None
-    except Exception as e:
-        print(f"⚠️ AI 解析用户画像失败: {e}")
-        return None
 
 
 def parse_profile_with_ai_sync(
