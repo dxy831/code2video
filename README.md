@@ -1,4 +1,6 @@
-curl -N -X POST http://localhost:8081/api/v1/generate-video -H "Content-Type: application/json" -H "X-API-Key: dev-api-key-12345" -d @request.json
+本地： curl -N -X POST http://localhost:8080/api/v1/generate-video -H "Content-Type: application/json" -H "X-API-Key: dev-api-key-12345" -d @request.json
+
+docker：curl -N -X POST http://localhost:8081/api/v1/generate-video -H "Content-Type: application/json" -H "X-API-Key: dev-api-key-12345" -d @request.json
 
 
 # Code2Video Docker 部署指南

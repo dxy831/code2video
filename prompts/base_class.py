@@ -1,5 +1,14 @@
 base_class = """
 class TeachingScene(Scene):
+    # 右侧安全区域边界常量
+    RIGHT_X_MIN = 0.3
+    RIGHT_X_MAX = 6.5
+    RIGHT_Y_MIN = -3.5
+    RIGHT_Y_MAX = 3.0
+    RIGHT_CENTER = np.array([3.4, -0.25, 0])
+    RIGHT_MAX_WIDTH = 6.0
+    RIGHT_MAX_HEIGHT = 5.5
+
     def setup_layout(self, title_text, lecture_lines):
         # BASE - 温暖配色方案
         self.camera.background_color = "#FFFDF4"  # 温暖米白色背景
@@ -16,7 +25,7 @@ class TeachingScene(Scene):
         self.lecture.next_to(self.title, DOWN, buff=1.0).to_edge(LEFT, buff=0.3)
         self.add(self.lecture)
 
-        # Define fine-grained animation grid (4x4 grid on right side)
+        # Define fine-grained animation grid (6x6 grid on right side)
         self.grid = {}
         rows = ["A", "B", "C", "D", "E", "F"]  # Top to bottom
         cols = ["1", "2", "3", "4", "5", "6"]  # Left to right
@@ -53,11 +62,71 @@ class TeachingScene(Scene):
         )
 
     def place_at_grid(self, mobject, grid_pos, scale_factor=1.0):
+        \"\"\"将元素放置到网格位置。\"\"\"
         mobject.scale(scale_factor)
         mobject.move_to(self.grid[grid_pos])
         return mobject
 
+    def highlight_lecture_line(self, index, color):
+        \"\"\"
+        高亮当前正在讲解的某一行文字（变色），用于"讲到哪一行，哪一行变色"。
+        
+        Args:
+            index: 讲解文字的行索引（从0开始）
+            color: 高亮颜色，可根据语义自由选择配色表中的任意颜色
+        
+        Returns:
+            动画对象，可传入 self.play()
+        
+        用法示例:
+            self.play(self.highlight_lecture_line(0, "#C35101"))   # 第1行变为强调橙色
+            self.play(self.highlight_lecture_line(0, "#478211"))   # 第1行变绿色
+            self.play(self.highlight_lecture_line(1, "#1A7F99"))   # 第2行变蓝色
+        \"\"\"
+        if 0 <= index < len(self.lecture):
+            return self.lecture[index].animate.set_color(color)
+        return Wait(0)
+
+    def unhighlight_lecture_line(self, index, color="#2C1608"):
+        \"\"\"
+        取消高亮，将讲解文字恢复为原始颜色。
+        
+        Args:
+            index: 讲解文字的行索引（从0开始）
+            color: 恢复的颜色，默认深棕色 #2C1608（原始文字颜色）
+        
+        Returns:
+            动画对象，可传入 self.play()
+        
+        用法示例:
+            self.play(self.unhighlight_lecture_line(0))  # 第1行恢复原色
+        \"\"\"
+        if 0 <= index < len(self.lecture):
+            return self.lecture[index].animate.set_color(color)
+        return Wait(0)
+
+    def speak_and_highlight(self, index, color, wait_time=1.5):
+        \"\"\"
+        讲到某行文字时高亮变色，等待一段时间后自动恢复原色。
+        一步完成"高亮 → 等待 → 恢复"的完整流程。
+        
+        Args:
+            index: 讲解文字的行索引（从0开始）
+            color: 高亮颜色，可根据语义自由选择配色表中的任意颜色
+            wait_time: 高亮持续时间（秒），默认1.5秒
+        
+        用法示例:
+            self.speak_and_highlight(0, "#C35101")              # 第1行用橙色高亮1.5秒后恢复
+            self.speak_and_highlight(1, "#478211", wait_time=2)  # 第2行用绿色高亮2秒后恢复
+            self.speak_and_highlight(2, "#1A7F99")              # 第3行用蓝色高亮
+        \"\"\"
+        if 0 <= index < len(self.lecture):
+            self.play(self.lecture[index].animate.set_color(color))
+            self.wait(wait_time)
+            self.play(self.lecture[index].animate.set_color("#2C1608"))
+
     def place_in_area(self, mobject, top_left, bottom_right, scale_factor=1.0):
+        \"\"\"将元素放置到网格区域中心，并自动边界裁剪。\"\"\"
         tl_pos = self.grid[top_left]
         br_pos = self.grid[bottom_right]
         

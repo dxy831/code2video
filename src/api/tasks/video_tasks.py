@@ -139,7 +139,7 @@ def generate_video_task(
             user_profile=user_profile,
             problem_description=problem_description,
             solution_code=solution_code,
-            max_code_token_length=80000,  # 提高 token 上限，避免分镜脚本被截断
+            max_code_token_length=60000,  # 提高 token 上限，避免分镜脚本被截断
             max_fix_bug_tries=10,
             max_regenerate_tries=10,
             max_feedback_gen_code_tries=5,

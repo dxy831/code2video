@@ -672,11 +672,13 @@ class GridPositionExtractor:
     """Extract grid position information from Manim code"""
 
     def __init__(self):
-        # Match place_at_grid and place_in_area methods
+        # Match place_at_grid, place_in_area, and add_to_right methods
         self.grid_patterns = [
             r'self\.place_at_grid\(\s*([^,]+),\s*[\'"]([A-F][1-6])[\'"](?:,\s*scale_factor=([0-9.]+))?\s*\)',
             r'self\.place_in_area\(\s*([^,]+),\s*[\'"]([A-F][1-6])[\'"],\s*[\'"]([A-F][1-6])[\'"](?:,\s*scale_factor=([0-9.]+))?\s*\)',
         ]
+        # Pattern for add_to_right with optional position parameter
+        self.add_to_right_pattern = r'self\.add_to_right\(\s*([^,\)]+)(?:,\s*position\s*=\s*[\'"]([A-F][1-6])[\'"])?'
 
     def extract_grid_positions(self, code: str) -> List[GridPosition]:
         """Extract all grid position information from the code"""
@@ -701,6 +703,7 @@ class GridPositionExtractor:
                         original_code=line.strip(),
                     )
                 )
+                continue
 
             # Check place_in_area
             match = re.search(self.grid_patterns[1], line)
@@ -716,6 +719,24 @@ class GridPositionExtractor:
                         method="place_in_area",
                         position=f"{start_pos}-{end_pos}",
                         scale_factor=scale,
+                        line_number=line_num,
+                        original_code=line.strip(),
+                    )
+                )
+                continue
+
+            # Check add_to_right
+            match = re.search(self.add_to_right_pattern, line)
+            if match:
+                obj_name = match.group(1).strip()
+                grid_pos = match.group(2) if match.group(2) else "CENTER"
+
+                positions.append(
+                    GridPosition(
+                        object_name=obj_name,
+                        method="add_to_right",
+                        position=grid_pos,
+                        scale_factor=None,
                         line_number=line_num,
                         original_code=line.strip(),
                     )
@@ -768,7 +789,7 @@ class GridCodeModifier:
 
         modifications: List[Dict[str, Any]] = []
         line_pat = re.compile(r"\bline\s+(\d+)\b", re.IGNORECASE)
-        call_pat = re.compile(r"self\.(?:place_at_grid|place_in_area)\([^\n\r]*?\)")
+        call_pat = re.compile(r"self\.(?:place_at_grid|place_in_area|add_to_right|remove_from_right|clear_right_area)\([^\n\r]*?\)")
 
         for item in feedback_list:
             if not isinstance(item, str):

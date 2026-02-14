@@ -17,13 +17,15 @@ lecture | A1 A2 A3 A4 A5 A6 | B1 B2 B3 B4 B5 B6 | C1 C2 C3 C4 C5 C6 | D1 D2 D3 D
 
 - 点定位 (point): self.place_at_grid(obj, 'B2', scale_factor=0.8)
 - 区域定位 (area): self.place_in_area(obj, 'A1', 'C3', scale_factor=0.7)
+- 手动定位: obj.move_to([3.5, -0.5, 0])，然后检查边界并缩放
 
 4. 布局评估 (检查所有项):
 - **遮挡 (Obstruction)**: 动画元素是否遮挡了左侧的讲解文字？[严重]
 - **重叠 (Overlap)**: 动画元素之间（公式、标签、图形）是否发生重叠？
 - **出界 (Off-screen)**: 元素是否被切掉或超出了屏幕可视范围？[特别是长文本标签]
 - **网格违规**: 空间利用是否不合理（太挤或太散）？
-- **未消失**: 检查是否有应该淡出但未淡出的元素。
+- **未消失**: 检查是否有应该淡出但未淡出的元素（旧动画残留导致重叠）。
+- **右侧区域管理**: 右侧元素是否在安全区域 X∈[0.3,6.5] Y∈[-3.5,3.0] 内？切换场景时旧元素是否已 FadeOut + self.remove() 清理？
 
 5. 强制约束:
 - 颜色: 指出颜色不清晰的地方。
@@ -71,8 +73,11 @@ def get_feedback_improve_code(feedback, code):
 
 **必须遵守 (MANDATORY)**:
 - 基于以下反馈，修改当前的 Manim 代码。
-- 动画和标签请使用明亮、高对比度的颜色！
+- 动画和标签请使用明显、清楚、符合整体配色的颜色！
 - **严禁**对左侧讲解词（lecture lines）应用任何位置或大小动画，只允许改变颜色（highlight）。
+- **右侧动画元素必须在安全区域内**：X∈[0.3, 6.5]，Y∈[-3.5, 3.0]，最大宽6.0/高5.5。
+- **切换动画场景时**，旧元素必须先 `FadeOut` 再 `self.remove()` 彻底移除，防止重叠。
+- **🔴 严禁使用 `self.add_to_right()`、`self.remove_from_right()`、`self.clear_right_area()` — 这些方法已删除，调用会报 AttributeError！** 正确做法：手动 `move_to()` 定位 → 检查边界 → `self.play(FadeIn(obj))` 添加。
 - 仅输出更新后的完整 Python 代码。不需要任何解释。
 
 反馈意见 (Feedback):

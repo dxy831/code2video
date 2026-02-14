@@ -507,7 +507,7 @@ class TeachingVideoAgent:
                 code_file = f"{section_id}.py"
                 cmd = [sys.executable, "-m", "manim", "-ql", str(code_file), scene_name]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.output_dir, timeout=300)
+                result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.output_dir, timeout=600)
 
                 if result.returncode == 0:
                     video_patterns = [
@@ -537,7 +537,7 @@ class TeachingVideoAgent:
                     break
 
             except subprocess.TimeoutExpired:
-                last_error = "Manim 渲染超时 (超过 300 秒)"
+                last_error = "Manim 渲染超时 (超过 600 秒)"
                 print(f"❌ {self.learning_topic} {section_id} 超时")
                 break
             except Exception as e:
@@ -819,7 +819,7 @@ class TeachingVideoAgent:
                 for future in as_completed(future_to_section):
                     section_id = future_to_section[future]
                     try:
-                        sid, success, video_path = future.result(timeout=1200)
+                        sid, success, video_path = future.result(timeout=2400)
 
                         if success and video_path:
                             results[sid] = video_path

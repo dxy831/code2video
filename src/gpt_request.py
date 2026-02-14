@@ -102,7 +102,7 @@ def request_claude_token(prompt, log_id=None, max_tokens=10000, max_retries=3):
                 max_tokens=max_tokens,
                 extra_headers=extra_headers,
                 stream=True,
-                stream_options={"include_usage": True},
+                # stream_options={"include_usage": True},  # 目前暂时不支持stream_options
             )
             
             collected_content = []
