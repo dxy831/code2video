@@ -507,7 +507,7 @@ class TeachingVideoAgent:
                 code_file = f"{section_id}.py"
                 cmd = [sys.executable, "-m", "manim", "-ql", str(code_file), scene_name]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.output_dir, timeout=600)
+                result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.output_dir, timeout=2000)
 
                 if result.returncode == 0:
                     video_patterns = [
