@@ -77,6 +77,10 @@ def generate_video_task(
         language = request_data.get("language", "Python")
         duration = request_data.get("duration", 5)
         difficulty = request_data.get("difficulty", "medium")
+        # 规范化难度值（兼容枚举/大小写）
+        if hasattr(difficulty, "value"):
+            difficulty = difficulty.value
+        difficulty = str(difficulty).lower()
         extra_info = request_data.get("extra_info", "")
         use_feedback = request_data.get("use_feedback", True)
         use_assets = request_data.get("use_assets", True)
@@ -97,6 +101,14 @@ def generate_video_task(
         task_id = callback.on_stage_start("parse_profile", "正在解析用户画像。")
         
         try:
+            # 难度映射（请求值 -> 中文等级）
+            difficulty_level_map = {
+                "simple": "入门",
+                "medium": "中等",
+                "hard": "进阶",
+            }
+            forced_difficulty_level = difficulty_level_map.get(difficulty, "中等")
+            
             # 难度映射为自然语言描述
             difficulty_desc_map = {
                 "simple": "内容难度偏简单入门",
@@ -122,6 +134,9 @@ def generate_video_task(
             # 使用 AI 解析用户画像
             parsed_profile = parse_profile_with_ai_sync(profile_text, api_func)
             if parsed_profile:
+                # 强制覆盖难度偏好，确保严格与请求 difficulty 一致
+                parsed_profile.setdefault("user_summary", {})
+                parsed_profile["user_summary"]["difficulty_preference"] = forced_difficulty_level
                 user_profile.update_with_parsed_profile(parsed_profile)
             
             callback.on_stage_finish(task_id, "用户画像解析成功。")
@@ -137,6 +152,7 @@ def generate_video_task(
             use_assets=use_assets,
             duration=duration,
             user_profile=user_profile,
+            forced_difficulty_level=forced_difficulty_level,
             problem_description=problem_description,
             solution_code=solution_code,
             max_code_token_length=60000,  # 提高 token 上限，避免分镜脚本被截断
@@ -164,6 +180,16 @@ def generate_video_task(
         task_id = callback.on_stage_start("generate_outline", "正在生成教学大纲。")
         try:
             agent.generate_outline()
+            
+            # 强制覆盖大纲中的 difficulty_level，确保与请求参数完全一致
+            outline_file = Path(agent.output_dir) / "outline.json"
+            if outline_file.exists():
+                with open(outline_file, "r", encoding="utf-8") as f:
+                    outline_data = json.load(f)
+                outline_data["difficulty_level"] = forced_difficulty_level
+                with open(outline_file, "w", encoding="utf-8") as f:
+                    json.dump(outline_data, f, ensure_ascii=False, indent=2)
+
             callback.on_stage_finish(task_id, "教学大纲生成成功。")
         except Exception as e:
             callback.on_stage_failed(task_id, f"教学大纲生成失败: {str(e)}")

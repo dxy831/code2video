@@ -81,6 +81,8 @@ class RunConfig:
     duration: int = 5
     # 用户个性化配置
     user_profile: Optional[UserProfile] = None
+    # 强制大纲难度（入门/中等/进阶），若为空则由画像推断
+    forced_difficulty_level: Optional[str] = None
     # 编程题目相关
     problem_description: str = ""
     solution_code: str = ""
@@ -123,6 +125,7 @@ class TeachingVideoAgent:
         self.max_regenerate_tries = cfg.max_regenerate_tries
         self.max_feedback_gen_code_tries = cfg.max_feedback_gen_code_tries
         self.max_mllm_fix_bugs_tries = cfg.max_mllm_fix_bugs_tries
+        self.forced_difficulty_level = cfg.forced_difficulty_level
         self.duration = cfg.duration
         self.use_assets = cfg.use_assets
         self.API = cfg.api
@@ -218,7 +221,8 @@ class TeachingVideoAgent:
                 solution_code=self.solution_code,
                 duration=self.duration, 
                 reference_image_path=refer_img_path,
-                user_profile=self.user_profile
+                user_profile=self.user_profile,
+                forced_difficulty_level=self.forced_difficulty_level,
             )
 
             print(f"📝 正在生成大纲...")

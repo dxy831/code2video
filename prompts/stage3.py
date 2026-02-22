@@ -8,8 +8,7 @@ def get_prompt3_code(
     section,
     base_class: str,
     user_profile: Optional[UserProfile] = None,
-    estimated_duration: Optional[int] = None,
-    solution_code: Optional[str] = None
+    estimated_duration: Optional[int] = None
 ):
     """
     生成Manim代码的提示词
@@ -20,7 +19,6 @@ def get_prompt3_code(
         base_class: 基类代码
         user_profile: 用户配置，可选
         estimated_duration: 该章节的预计时长（秒），可选
-        solution_code: 用户提供的标准答案代码（不可修改），可选
     
     Returns:
         完整的提示词字符串
@@ -49,30 +47,13 @@ def get_prompt3_code(
     - **⚠️ 必须严格遵守**: 确保动画总时长接近目标时长 **{estimated_duration} 秒**，严禁过短！
 """
     
-    # 生成标准答案代码提示词片段
-    solution_code_prompt = ""
-    if solution_code:
-        solution_code_prompt = f"""
-    ## 🔴🔴🔴 标准答案代码（严禁修改，必须原封不动使用！）🔴🔴🔴
-    
-    **以下是用户提供的标准答案代码，在视频中展示代码时，必须使用这段代码原文，严禁修改、重写、简化或省略任何部分，一个字都不能改！**
-    
-    ```{target_language.lower()}
-{solution_code}
-    ```
-    
-    **当需要在 Manim 中展示代码块时，必须使用上述标准答案代码的原文内容传入 `self.create_code_block()`。**
-"""
-    
     return f"""
-    你是一位精通 Manim 的 Python 专家。请编写代码生成一个**讲解编程题目代码答案**的视频片段。
+    你是一位精通 Manim 的 Python 专家。请编写代码生成一个**解释复杂算法执行逻辑**的视频片段。
 
     {regenerate_note}
     {duration_guidance}
 
     {profile_prompt}
-    
-    {solution_code_prompt}
 
     ## 🔴🔴🔴 关键规则摘要（必须首先阅读！）🔴🔴🔴
     
@@ -142,6 +123,86 @@ def get_prompt3_code(
 
     **无论是首次生成代码还是修复错误时，都必须使用 MathTex 渲染数学符号和特殊符号。**
     **如果修复代码时遇到 LaTeX 相关错误，应该修复 LaTeX 语法本身，而不是把 MathTex 改成 Text！**
+
+    ### 🔴🔴🔴 规则 1.3：讲解文字中出现数学片段时，禁止整句 Text(line) 直出！🔴🔴🔴
+
+    **这是 `log₂n` 最常见渲染失败来源。**
+    左侧讲解行如果包含数学/符号片段（如 `O(`、`log`、`²`、`ₙ`、`₂`、`^`、`=`、`≤`、`≥`、`✓`、`✗`），
+    **必须拆成 Text + MathTex 混排**，不能直接 `Text(line, ...)`。
+
+    ```python
+    # ❌ 错误：整句 Text 会导致 log₂n / O(log n) 等符号渲染异常
+    Text("递归版本是O(log n)，递归深度最大为log₂n", font="Noto Sans SC", font_size=20, color="#2C1608")
+
+    # ✅ 正确：中文用 Text，数学片段用 MathTex，再组合
+    lecture_line = VGroup(
+        Text("递归版本是", font="Noto Sans SC", font_size=20, color="#
+    ### 🔴🔴🔴 规则 1.3：讲解文字中出现数学片段时，禁止整句 Text(line) 直出！🔴🔴🔴
+
+    **这是 `log₂n` 最常见渲染失败来源。**
+    左侧讲解行如果包含数学/符号片段（如 `O(`、`log`、`²`、`ₙ`、`₂`、`^`、`=`、`≤`、`≥`、`✓`、`✗`），
+    **必须拆成 Text + MathTex 混排**，不能直接 `Text(line, ...)`。
+
+    ```python
+    # ❌ 错误：整句 Text 会导致 log₂n / O(log n) 等符号渲染异常
+    Text("递归版本是O(log n)，递归深度最大为log₂n", font="Noto Sans SC", font_size=20, color="#2C1608")
+
+    # ✅ 正确：中文用 Text，数学片段用 MathTex，再组合
+    lecture_line = VGroup(
+        Text("递归版本是", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"O(\\log n)", color="#2C1608").scale(0.65),
+        Text("，递归深度最大为", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"\\log_2 n", color="#2C1608").scale(0.65)
+    ).arrange(RIGHT, buff=0.06, aligned_edge=DOWN)
+    ```
+
+    ### 🔴🔴🔴 规则 1.4：`setup_layout()` 首批讲解行严禁包含数学符号！🔴🔴🔴
+
+    `setup_layout(title_text, lecture_lines)` 内部会把 `lecture_lines` 逐行直接做成 `Text(...)`。
+    因此首批讲解行如果写 `log₂n` / `O(log n)` / `n/2^k` 会出现渲染异常（如方框、缺字）。
+
+    **硬性要求：传入 `setup_layout()` 的首批 `lecture_lines` 必须是纯中文自然语言，不得包含数学记号。**
+
+    ```python
+    # ❌ 错误：首批讲解行直接放数学符号（会被 Text 渲染）
+    self.setup_layout("复杂度分析", [
+        "当剩余1个元素时停止，解得 k=log₂n"
+    ])
+
+    # ✅ 正确：首批改写为纯中文描述
+    self.setup_layout("复杂度分析", [
+        "当剩余一个元素时停止，k=logn（以2为底）"  # 这里虽然有 logn，但没有数学符号
+    ])
+    ```
+
+    **若必须展示公式，请放到右侧动画区用 `MathTex`，不要写进 `setup_layout()` 的 lecture_lines。**
+    2C1608"),
+        MathTex(r"O(\\log n)", color="#2C1608").scale(0.65),
+        Text("，递归深度最大为", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"\\log_2 n", color="#2C1608").scale(0.65)
+    ).arrange(RIGHT, buff=0.06, aligned_edge=DOWN)
+    ```
+
+    ### 🔴🔴🔴 规则 1.4：`setup_layout()` 首批讲解行严禁包含数学符号！🔴🔴🔴
+
+    `setup_layout(title_text, lecture_lines)` 内部会把 `lecture_lines` 逐行直接做成 `Text(...)`。
+    因此首批讲解行如果写 `log₂n` / `O(log n)` / `n/2^k` 会出现渲染异常（如方框、缺字）。
+
+    **硬性要求：传入 `setup_layout()` 的首批 `lecture_lines` 必须是纯中文自然语言，不得包含数学记号。**
+
+    ```python
+    # ❌ 错误：首批讲解行直接放数学符号（会被 Text 渲染）
+    self.setup_layout("复杂度分析", [
+        "当剩余1个元素时停止，解得 k=log₂n"
+    ])
+
+    # ✅ 正确：首批改写为纯中文描述
+    self.setup_layout("复杂度分析", [
+        "当剩余一个元素时停止，k=logn（以2为底）"  # 这里虽然有 logn，但没有数学符号
+    ])
+    ```
+
+    **若必须展示公式，请放到右侧动画区用 `MathTex`，不要写进 `setup_layout()` 的 lecture_lines。**
     
     ### 规则 2：代码块必须使用 self.create_code_block()
     
@@ -183,7 +244,11 @@ def get_prompt3_code(
     if obj.width > 6.0: obj.scale_to_fit_width(6.0)
     if obj.height > 5.5: obj.scale_to_fit_height(5.5)
 
-    # 检查是否超出边界
+    # 检查是否超出边
+    
+    **🔴 右侧大图专用硬性规则（必须遵守）：**
+    - 当右侧正在展示**大型图案**（如：横排数组、二维矩阵、二叉树、调用栈、大表格）时，
+        **该大图案的右侧****禁止出现**额外文字标注/解释文本/标题动画、（如 `Text(...)`、`MathTex(...)` 标签、对比说明）。界
     if obj.get_right()[0] > 6.5:
         obj.shift(LEFT * (obj.get_right()[0] - 6.5 + 0.2))
     if obj.get_bottom()[1] < -3.5:
@@ -207,6 +272,10 @@ def get_prompt3_code(
     | 二维表格/矩阵 | ≤6×6 | cell_size=0.6 | 3.6×3.6 ✅ |
     | 二叉树 | ≤4 层 | 节点 radius=0.25 | 高度≈4.0 ✅ |
     | 右侧文字标注 | - | font_size=16~18 | 单行≤5.0 宽 |
+
+    **🔴 右侧大图专用硬性规则（必须遵守）：**
+    - 当右侧正在展示**大型图案**（如：横排数组、二维矩阵、二叉树、调用栈、大表格）时，
+        **该大图案的右侧****禁止出现**额外文字标注/解释文本/标题动画、（如 `Text(...)`、`MathTex(...)` 标签、对比说明）。
 
     **⚠️ 超出上表限制时的处理方式：**
     - 数组超过 10 个元素 → 分两行显示，或用 `side_length=0.4`
@@ -257,32 +326,6 @@ def get_prompt3_code(
 
     ---
 
-    ### 🔴 思路分析章节的特殊要求 🔴
-    如果当前章节属于**思路分析**（标题中包含"思路"、"暴力"、"优化"、"核心思想"等关键词），必须遵守：
-    - **动画必须细致**：每一步推理都要有对应的可视化动画，不能只用文字讲解
-    - **严禁跳步**：不能突然跳到结论，必须展示完整的思考过程
-    - **必须用具体例子**：用数组、表格等具体数据演示思路，先跑例子再总结规律
-    - **核心三问都要体现在动画中**：
-      1. "怎么想到的" → 用动画高亮题目关键条件，展示推理链
-      2. "具体怎么做" → 用具体数据逐步演示算法流程
-      3. "为什么能解决" → 用动画对比说明正确性
-    - **讲解文字必须连贯**：每批 lecture_lines 之间要有逻辑衔接，前因后果清晰
-    - **wait() 要充足**：重要推理步骤后 `self.wait(2)` 以上，给观众思考时间
-
-    ### 🔴 代码讲解章节的特殊要求（节奏必须与思路分析一致！）🔴
-    如果当前章节属于**代码讲解**（标题中包含"代码"、"精讲"、"讲解"、"代码精讲"等关键词），必须遵守：
-    - **wait() 必须充足，节奏与思路分析部分保持一致！** 代码讲解不能比思路分析快，观众需要同样的理解时间
-    - **代码高亮后必须停顿**：高亮代码行后 `self.wait(1.5)` 以上，让观众看清高亮的代码内容
-    - **右侧可视化展示后必须停顿**：展示 DP 表、箭头、流程图等辅助说明后 `self.wait(1.5)` 以上
-    - **讲解文字变色后必须停顿**：高亮讲解文字后至少 `self.wait(1)` 再恢复原色
-    - **切换讲解批次前必须停顿**：FadeOut 旧内容前 `self.wait(1.5)` 以上
-    - **动画 run_time 不能过短**：highlight、FadeIn、Create 等动画的 run_time 至少 **0.5 秒**，严禁大量使用 run_time=0.3
-    - **推荐使用 `speak_and_highlight`**：讲解文字优先使用 `self.speak_and_highlight(index, color)` 方法，自带 1.5 秒等待时间
-    - **严禁快速连续播放多个动画不留停顿**：每个 `self.play()` 之后至少跟一个 `self.wait(0.5)`
-    - **每讲完一个代码片段/概念后**：`self.wait(1.5)` 到 `self.wait(2)` 给观众消化理解
-    - **章节结束前**：`self.wait(2)`
-
-
     ### 核心任务：通用算法可视化
     不要硬编码特定的形状，而是根据算法逻辑选择最合适的 Manim 对象。
 
@@ -329,16 +372,20 @@ def get_prompt3_code(
     **第一步：判断当前章节有没有代码块**
     - **有代码块**（左下有 `create_code_block`）→ 每批最多 **4行**
     - **无代码块**（纯讲解+右侧动画，如思路分析、题目解读、总结等）→ 每批最多 **8行**
-    - **🔴 大部分思路分析章节都没有代码块，应该用8行上限，不是4行！**
-
-    **第二步：按语义完整性分批（比行数限制更重要！）**
-    - **一个知识点的所有内容必须在同一批**，不能拆到两批
-    - **不同知识点不能硬凑到同一批**
-    - 如果一个知识点只有2行，就只显示2行；如果有6行，就显示6行
-    - **严禁机械地每批都凑满4行！**
-
-    - **左上对齐**：讲解文字必须 `.next_to(title, DOWN, buff=0.5).to_edge(LEFT, buff=0.3)`，从**左上角**开始，**严禁Y轴居中**
-    - **位置固定**：首批出现时记录 `lecture_pos = self.lecture.get_corner(UL)`，后续批次用 `.align_to(lecture_pos, UL)` 保持左上对齐
+    - **🔴 大部分思路分析章节 **执行顺序（必须按顺序执行，不能跳步）：**
+     1. **先判断当前章节有没有代码块**
+         - **有代码块**（左下有 `create_code_block`）→ 每批最多 **4行**
+         - **无代码块**（纯讲解+右侧动画，如思路分析、题目解读、总结等）→ 每批最多 **8行**
+         - **🔴 大部分思路分析章节都没有代码块，应该用8行上限，不是4行！**
+     2. **再按语义完整性分批（比行数限制更重要！）**
+         - **同一知识点可跨多批**（建议 2-4 批，按时长自适应），但**不能与下一个知识点拼到同一批**
+         - **不同知识点不能硬凑到同一批**
+         - 如果一个知识点只有2行，就只显示2行；如果有6行，就显示6行
+         - **严禁机械地每批都凑满4行！**
+         - **特别强调：必须按语义完整性分批，不能按固定行数模板化切分。**
+     3. **最后检查是否超过该场景上限（4行或8行）**
+         - 若未超过：保持该知识点完整，不做额外拆分
+         - 若超过：只在该知识点内部按自然语义断点拆分，**禁止跨知识点拼接凑行数**lecture.get_corner(UL)`，后续批次用 `.align_to(lecture_pos, UL)` 保持左上对齐
     - **切换方式**：当前批次讲完 → `FadeOut` + `self.remove()` → 新批次在**原位置左上对齐**显示
 
     **【关键】右侧动画区域（严禁出框，必须在标题下方）：**
@@ -419,12 +466,6 @@ def algo(data):
     self.play(Create(some_right_side_obj))                # 播放动画
     self.play(self.unhighlight_lecture_line(0))            # 必须恢复！
     ```
-    
-    ### 3. 数据结构映射
-    - **Array/DP Table**: `VGroup` of `Square`，必须标 Index
-    - **Tree/Graph**: `Graph` 类或 `Circle` + `Line`
-    - **Pointer**: `Arrow` 指向当前操作对象
-    - 禁止 3D 场景，保持 2D 清晰图解
 
     ### 🔴 规则 7：方块+文字标签的正确组合方式（严禁 arrange 分离！）🔴
 
@@ -452,6 +493,12 @@ def algo(data):
         t.move_to(squares[i])  # 先叠放
     row = VGroup(label, squares, texts).arrange(RIGHT, buff=0.2)  # ❌ arrange 会把 texts 整体挤到 squares 右边！
     ```
+
+    ### 3. 数据结构映射
+    - **Array/DP Table**: `VGroup` of `Square`，必须标 Index
+    - **Tree/Graph**: `Graph` 类或 `Circle` + `Line`
+    - **Pointer**: `Arrow` 指向当前操作对象
+    - 禁止 3D 场景，保持 2D 清晰图解
 
     ### 任务输入
     - 标题: {section.title}
@@ -635,6 +682,7 @@ def algo(data):
     | `Text("×"` | 会显示方框 | `MathTex(r"\\times", color=...).scale(1.2)` |
     | `Text("O(` | 数学符号方框 | 拆分为 Text + MathTex 的 VGroup |
     | `Text("log` | 数学符号方框 | 拆分为 Text + MathTex 的 VGroup |
+    | `Text(".*log₂.*")` | 下标渲染不稳定/方框 | 拆分为 Text + `MathTex(r"\\log_2 n")` |
     | `Code(code_string=` | 样式错误 | `self.create_code_block(` |
     | `self.add_to_right(` | ❌ 该方法已删除！ | 手动 `move_to` + 边界检查 + `self.play(FadeIn(...))` |
     | `self.remove_from_right(` | ❌ 该方法已删除！ | `self.play(FadeOut(...))` + `self.remove(...)` |
@@ -643,16 +691,18 @@ def algo(data):
     | `# 避免 LaTeX` | ❌ 严禁以此为借口 | 保持 MathTex，环境没有 LaTeX 问题 |
 
     **🔴🔴🔴 严禁使用 `self.add_to_right()` — 该方法不存在！🔴🔴🔴**
-    基类 `TeachingScene` 中没有 `add_to_right`、`remove_from_right`、`clear_right_area` 方法。
-    如果你的代码中出现这些调用，运行时会直接报 `AttributeError` 崩溃！
-    正确做法：手动 `move_to()` 定位 → 检查边界 → `self.play(FadeIn(obj))` 添加。
-
-    **完整自检步骤（必须全部执行）：**
+    基类 `Teachin MathT**完整自检步骤（必须全部执行）：**
     1. 搜索所有 `Text(` 调用，检查内容是否包含 ✓✗×√ 或数学符号 → 必须改为 MathTex，否则运行必定失败！
-    2. 检查每一行讲解文字是否都有 `highlight_lecture_line` / `speak_and_highlight` 调用
-    3. 检查每个 `highlight_lecture_line` 是否都有对应的 `unhighlight_lecture_line`（必须成对出现！）
-    4. 检查每行讲解文字是否超过20个中文字符，超过则拆行（不超过20字的短句不要强行拆开）
-    5. 检查讲解文字分批是否按语义切分，不同知识点不能混在同一批
+    2. 专项检查所有讲解行：若行文本含 `O(`/`log`/`²`/`₂`/`ₙ`/`^`/`=`/`≤`/`≥`/`✓`/`✗`，禁止整句 `Text(line, ...)`，必须改为 Text + MathTex 混排（重点检查 `log₂n`）
+    3. 检查每一行讲解文字是否都有 `highlight_lecture_line` / `speak_and_highlight` 调用
+    4. 检查每个 `highlight_lecture_line` 是否都有对应的 `unhighlight_lecture_line`（必须成对出现！）
+    5. 检查每行讲解文字是否超过20个中文字符，超过则拆行（不超过20字的短句不要强行拆开）
+    6. 检查讲解文字分批是否按语义切分，不同知识点不能混在同一批
+    7. 检查右侧是否出现“**大型图案 + 右侧文字标注并存**”的情况；若出现，必须删除右侧文字或先切换场景后再显示
+    8. 专项检查 `self.setup_layout(..., lecture_lines)` 的首批行：若包含 `O(` / `log` / `²` / `₂` / `ₙ` / `^` / `=` / `≤` / `≥`，必须改写为纯中文描述，并将公式改到右侧 `MathTex`行（不超过20字的短句不要强行拆开）
+    6. 检查讲解文字分批是否按语义切分，不同知识点不能混在同一批
+    7. 检查右侧是否出现“**大型图案 + 右侧文字标注并存**”的情况；若出现，必须删除右侧文字或先切换场景后再显示
+    8. 专项检查 `self.setup_layout(..., lecture_lines)` 的首批行：若包含 `O(` / `log` / `²` / `₂` / `ₙ` / `^` / `=` / `≤` / `≥`，必须改写为纯中文描述，并将公式改到右侧 `MathTex`
 """
 
 

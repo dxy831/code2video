@@ -7,7 +7,8 @@ def get_prompt1_outline(
     solution_code: str,
     duration: int = 5,
     reference_image_path: Optional[str] = None,
-    user_profile: Optional[UserProfile] = None
+    user_profile: Optional[UserProfile] = None,
+    forced_difficulty_level: Optional[str] = None
 ):
     """
     生成编程题目代码讲解大纲的提示词
@@ -30,6 +31,21 @@ def get_prompt1_outline(
     profile_prompt = user_profile.get_stage1_prompt()
     target_language = user_profile.get_language()
     
+    difficulty_field_instruction = (
+        forced_difficulty_level
+        if forced_difficulty_level
+        else "根据用户画像确定的难度级别"
+    )
+
+    force_difficulty_prompt = ""
+    if forced_difficulty_level:
+        force_difficulty_prompt = f"""
+    ## 🔴 难度硬约束（必须严格遵守）
+    - 本次请求指定难度：**{forced_difficulty_level}**
+    - 输出 JSON 时，`difficulty_level` 字段必须且只能等于 **\"{forced_difficulty_level}\"**
+    - 严禁根据用户画像、额外信息或模型偏好改写该值
+    """
+    
     base_prompt = f""" 
     你是一位**编程题目讲解专家**。你需要设计一个**编程题目代码答案讲解视频**的教学大纲。
 
@@ -41,13 +57,15 @@ def get_prompt1_outline(
     {problem_description}
 
     ## 标准答案代码（严禁修改，必须原封不动使用）
-    ```{target_language.lower()}
-{solution_code}
+    ```
+    {target_language.lower()}
+    {solution_code}
     ```
 
     要求视频总时长：至少 {duration} 分钟。
     
     {profile_prompt}
+    {force_difficulty_prompt}
     
     # 核心教学结构（三段式讲解）
 
@@ -160,7 +178,7 @@ def get_prompt1_outline(
         "topic": "题目名称 - 解法名称（如'最长回文子串 - 动态规划解法'）",
         "target_audience": "根据用户画像描述目标受众",
         "programming_language": "{target_language}",
-        "difficulty_level": "根据用户画像确定的难度级别",
+        "difficulty_level": "{difficulty_field_instruction}",
         "problem_summary": "一句话概括题目要求",
         "solution_approach": "一句话概括标准答案的解题思路",
         "key_data_structures": ["列出标准答案中涉及的关键数据结构，如 'DP Table', 'Two Pointers', 'Hash Map'"],

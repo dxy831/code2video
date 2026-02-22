@@ -4,6 +4,6 @@
   "age": 20,
   "language": "Python",
   "duration": 10,
-  "difficulty": "simple",
+  "difficulty": "medium",
   "extra_info": "我是大学生，有一定的python编程基础，想要预习数据结构与算法，目标是通过暑假系统学习并掌握相关知识。"
 }
