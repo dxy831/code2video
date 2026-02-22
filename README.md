@@ -1,4 +1,4 @@
-# Code2Video API 接入文档
+# Knowledge2Video API 接入文档
 
 > **编程知识点讲解视频自动生成服务** —— 传入编程知识点和用户信息，自动生成 Manim 动画讲解视频。
 
@@ -318,7 +318,7 @@ curl http://localhost:8080/health
 
 ```
 ┌──────────┐                           ┌──────────────┐
-│  前端     │                           │  Code2Video  │
+│  前端     │                           │  Knowledge2Video  │
 │          │   POST /generate-video     │    API       │
 │          │ ─────────────────────────> │              │
 │          │                           │              │
@@ -392,7 +392,7 @@ async function checkTaskStatus(taskId) {
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/dxy831/code2vedio.git
+git clone https://github.com/dxy831/code2video.git
 cd code2video
 
 # 2. 配置 LLM API 密钥
