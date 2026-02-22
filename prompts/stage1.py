@@ -6,7 +6,8 @@ def get_prompt1_outline(
     knowledge_point: str,
     duration: int = 5,
     reference_image_path: Optional[str] = None,
-    user_profile: Optional[UserProfile] = None
+    user_profile: Optional[UserProfile] = None,
+    forced_difficulty_level: Optional[str] = None
 ):
     """
     生成教学大纲的提示词
@@ -28,6 +29,21 @@ def get_prompt1_outline(
     profile_prompt = user_profile.get_stage1_prompt()
     target_language = user_profile.get_language()
     
+    difficulty_field_instruction = (
+        forced_difficulty_level
+        if forced_difficulty_level
+        else "根据用户画像确定的难度级别"
+    )
+
+    force_difficulty_prompt = ""
+    if forced_difficulty_level:
+        force_difficulty_prompt = f"""
+    ## 🔴 难度硬约束（必须严格遵守）
+    - 本次请求指定难度：**{forced_difficulty_level}**
+    - 输出 JSON 时，`difficulty_level` 字段必须且只能等于 **\"{forced_difficulty_level}\"**
+    - 严禁根据用户画像、额外信息或模型偏好改写该值
+"""
+
     base_prompt = f""" 
     你是一位**计算机科学教育架构师**。你需要设计一个**基于执行追踪（Execution Trace）**的深度算法教学大纲。
 
@@ -35,6 +51,7 @@ def get_prompt1_outline(
     要求视频总时长：至少 {duration} 分钟。
     
     {profile_prompt}
+    {force_difficulty_prompt}
     
     这意味着你需要：
     1. 设计足够多的小节（Sections），通常需要 8-12 个小节。
@@ -102,7 +119,7 @@ def get_prompt1_outline(
         "topic": "视频标题（体现深度和硬核，如'从零实现：XXX算法的内存级演示'）",
         "target_audience": "根据用户画像描述目标受众",
         "programming_language": "{target_language}",
-        "difficulty_level": "根据用户画像确定的难度级别",
+        "difficulty_level": "{difficulty_field_instruction}",
         "data_case_definition": "详细定义输入数据。例如：'图G：节点A-E，边权如下...；启发式函数 h(n)=...'",
         "algorithm_components": ["列出涉及的数据结构，如 'Min-Heap', 'Adjacency List', 'Visited Set'"],
         "sections": [

@@ -82,7 +82,7 @@ def get_prompt3_code(
     Text("×")         # ❌ 会显示方框
     ```
     
-    ### 🔴🔴🔴 规则 1.1：勾号和叉号的唯一正确写法 🔴🔴🔴
+    ### 🔴🔴🔴 规则 1.1：勾号和叉号的唯一正确写法（违反此规则 = 代码无法渲染 = 生成失败）🔴🔴🔴
     
     **这是最容易犯错的地方！AI 经常错误地使用 Text("✓") 或 Text("✗")！**
     
@@ -98,18 +98,12 @@ def get_prompt3_code(
     **❌ 以下写法全部是错误的（会显示方框或乱码）：**
     ```python
     # ❌ 错误写法 1：直接在 Text 中使用 Unicode 符号
-    Text("✓")           # ❌ 显示方框
     Text("✗")           # ❌ 显示方框
     Text("×")           # ❌ 显示方框
-    Text("√")           # ❌ 显示方框
     
     # ❌ 错误写法 2：在注释中写"勾"或"叉"然后用 Text
     # 红叉表示不需要交换
     wrong_mark = Text("✗", font="Noto Sans SC", font_size=28, color="#C84A2B")  # ❌ 错误！
-    
-    # ❌ 错误写法 3：使用其他 Unicode 字符
-    Text("☑")           # ❌ 显示方框
-    Text("☒")           # ❌ 显示方框
     ```
     
     **🔍 自检：如果你的代码中出现以下任何内容，必须改为 MathTex：**
@@ -117,6 +111,58 @@ def get_prompt3_code(
     - `Text("✗"` → 改为 `MathTex(r"\\times"`
     - `Text("×"` → 改为 `MathTex(r"\\times"`
     - `Text("√"` → 改为 `MathTex(r"\\checkmark"`
+
+    ### 🔴🔴🔴 规则 1.2：严禁以任何理由将 MathTex 替换为 Text！🔴🔴🔴
+
+    **运行环境已完整配置 LaTeX（texlive-full），MathTex 绝对不会出问题！**
+
+    **以下借口全部无效，严禁使用：**
+    - ❌ "使用 Text 代替 MathTex 来避免 LaTeX 文件锁定问题" — **环境没有锁定问题！**
+    - ❌ "为了兼容性改用 Text" — **MathTex 完全兼容！**
+    - ❌ "简化代码，用 Text 替代 MathTex" — **这会导致方框！**
+
+    **无论是首次生成代码还是修复错误时，都必须使用 MathTex 渲染数学符号和特殊符号。**
+    **如果修复代码时遇到 LaTeX 相关错误，应该修复 LaTeX 语法本身，而不是把 MathTex 改成 Text！**
+
+    ### 🔴🔴🔴 规则 1.3：讲解文字中出现数学片段时，禁止整句 Text(line) 直出！🔴🔴🔴
+
+    **这是 `log₂n` 最常见渲染失败来源。**
+    左侧讲解行如果包含数学/符号片段（如 `O(`、`log`、`²`、`ₙ`、`₂`、`^`、`=`、`≤`、`≥`、`✓`、`✗`），
+    **必须拆成 Text + MathTex 混排**，不能直接 `Text(line, ...)`。
+
+    ```python
+    # ❌ 错误：整句 Text 会导致 log₂n / O(log n) 等符号渲染异常
+    Text("递归版本是O(log n)，递归深度最大为log₂n", font="Noto Sans SC", font_size=20, color="#2C1608")
+
+    # ✅ 正确：中文用 Text，数学片段用 MathTex，再组合
+    lecture_line = VGroup(
+        Text("递归版本是", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"O(\\log n)", color="#2C1608").scale(0.65),
+        Text("，递归深度最大为", font="Noto Sans SC", font_size=20, color="#2C1608"),
+        MathTex(r"\\log_2 n", color="#2C1608").scale(0.65)
+    ).arrange(RIGHT, buff=0.06, aligned_edge=DOWN)
+    ```
+
+    ### 🔴🔴🔴 规则 1.4：`setup_layout()` 首批讲解行严禁包含数学符号！🔴🔴🔴
+
+    `setup_layout(title_text, lecture_lines)` 内部会把 `lecture_lines` 逐行直接做成 `Text(...)`。
+    因此首批讲解行如果写 `log₂n` / `O(log n)` / `n/2^k` 会出现渲染异常（如方框、缺字）。
+
+    **硬性要求：传入 `setup_layout()` 的首批 `lecture_lines` 必须是纯中文自然语言，不得包含数学记号。**
+
+    ```python
+    # ❌ 错误：首批讲解行直接放数学符号（会被 Text 渲染）
+    self.setup_layout("复杂度分析", [
+        "当剩余1个元素时停止，解得 k=log₂n"
+    ])
+
+    # ✅ 正确：首批改写为纯中文描述
+    self.setup_layout("复杂度分析", [
+        "当剩余一个元素时停止，k=logn（以2为底）"  # 这里虽然有 logn，但没有数学符号
+    ])
+    ```
+
+    **若必须展示公式，请放到右侧动画区用 `MathTex`，不要写进 `setup_layout()` 的 lecture_lines。**
     
     ### 规则 2：代码块必须使用 self.create_code_block()
     
@@ -137,27 +183,27 @@ def get_prompt3_code(
     - `background_config` - 浅金色背景 + 金色边框
     
     ### 规则 3：元素位置边界限制（严禁出框！）
-    
+
     **屏幕安全区域（Manim 坐标系）：**
     - **X 轴范围**: [-7.0, 7.0]（左右边界）
     - **Y 轴范围**: [-4.0, 4.0]（上下边界）
-    
+
     **左侧区域（代码+讲解）：**
     - X ∈ [-7.0, 0]
     - 代码块：`to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)`
     - 讲解文字：`to_edge(LEFT, buff=0.3)`，高度限制 2.5
-    
+
     **右侧区域（动画演示）：**
     - X ∈ [0.3, 6.5]，Y ∈ [-3.5, 3.0]
     - 中心点：`RIGHT_CENTER = [3.5, -0.5, 0]`
     - 最大尺寸：宽 6.0，高 5.5
-    
+
     ```python
     # ✅ 正确：创建元素后检查边界
     obj.move_to(RIGHT_CENTER)
     if obj.width > 6.0: obj.scale_to_fit_width(6.0)
     if obj.height > 5.5: obj.scale_to_fit_height(5.5)
-    
+
     # 检查是否超出边界
     if obj.get_right()[0] > 6.5:
         obj.shift(LEFT * (obj.get_right()[0] - 6.5 + 0.2))
@@ -166,11 +212,31 @@ def get_prompt3_code(
     if obj.get_top()[1] > 3.0:
         obj.shift(DOWN * (obj.get_top()[1] - 3.0 + 0.2))
     ```
-    
+
     **❌ 常见错误：**
     - 数组/表格太长超出右边界
     - 文字/代码块太多超出下边界
     - 动画元素与标题重叠（超出上边界 Y=3.0）
+
+    **📐 右侧元素尺寸速查表（设计时直接参照，避免出框！）：**
+    | 元素类型 | 最大数量/尺寸 | 推荐参数 | 占用宽度估算 |
+    |---------|-------------|---------|------------|
+    | 横排 Square 数组 | ≤8 个 | side_length=0.6, buff=0.1 | 8×0.7≈5.6 ✅ |
+    | 横排 Square 数组 | ≤10 个 | side_length=0.5, buff=0.08 | 10×0.58≈5.8 ✅ |
+    | 横排 Square 数组 | >10 个 | ❌ 必须分两行或缩小 | 超出6.0 ❌ |
+    | 纵排文字标签 | ≤6 行 | font_size=18 | 高度≈4.2 ✅ |
+    | 二维表格/矩阵 | ≤6×6 | cell_size=0.6 | 3.6×3.6 ✅ |
+    | 二叉树 | ≤4 层 | 节点 radius=0.25 | 高度≈4.0 ✅ |
+    | 右侧文字标注 | - | font_size=16~18 | 单行≤5.0 宽 |
+
+    **🔴 右侧大图专用硬性规则（必须遵守）：**
+    - 当右侧正在展示**大型图案**（如：横排数组、二维矩阵、二叉树、调用栈、大表格）时，
+        **该大图案的右侧****禁止出现**额外文字标注/解释文本/标题动画、（如 `Text(...)`、`MathTex(...)` 标签、对比说明）。
+
+    **⚠️ 超出上表限制时的处理方式：**
+    - 数组超过 10 个元素 → 分两行显示，或用 `side_length=0.4`
+    - 表格超过 6 列 → 缩小 cell_size 或只展示关键部分
+    - 文字标注太长 → 换行或缩小 font_size
     
     ### 规则 4：讲解文字必须使用 font_size=20
     
@@ -252,13 +318,31 @@ def get_prompt3_code(
         code_obj.to_edge(DOWN, buff=0.3)
     ```
 
-    **【⚠️ 讲解文字分批显示 - 硬性规则】**
-    - **每批最多4行**：屏幕上同时显示的讲解文字行数 **≤4**，严禁超过
-    - **按语义分组**：优先按语义完整性分组（如3+3而非4+2），但单组不超过4行
+     **【⚠️ 讲解文字分批显示 - 硬性规则】**
+     - **🔴 每行字数限制**：每行讲解文字不超过 **20个中文字符**（含标点、英文字母、数字）即可放一行，无需刻意拆短。只有超过20字时才按语义拆成多行。**不要把一句完整的短句强行拆成两行！一句话能在20字以内说完就放一行。** 超过20字的文字会侵入右侧动画区域导致重叠！
+
+     ### 🔴🔴🔴 分批核心规则（最容易犯错！必须严格遵守！）🔴🔴🔴
+
+     **AI 最常犯的错误：不管有没有代码块，都机械地每批4行。这是错误的！**
+
+     **执行顺序（必须按顺序执行，不能跳步）：**
+     1. **先判断当前章节有没有代码块**
+         - **有代码块**（左下有 `create_code_block`）→ 每批最多 **4行**
+         - **无代码块**（纯讲解+右侧动画，如思路分析、题目解读、总结等）→ 每批最多 **8行**
+         - **🔴 大部分思路分析章节都没有代码块，应该用8行上限，不是4行！**
+     2. **再按语义完整性分批（比行数限制更重要！）**
+         - **一个知识点的所有内容必须在同一批**，不能拆到两批
+         - **不同知识点不能硬凑到同一批**
+         - 如果一个知识点只有2行，就只显示2行；如果有6行，就显示6行
+         - **严禁机械地每批都凑满4行！**
+         - **特别强调：必须按语义完整性分批，不能按固定行数模板化切分。**
+     3. **最后检查是否超过该场景上限（4行或8行）**
+         - 若未超过：保持该知识点完整，不做额外拆分
+         - 若超过：只在该知识点内部按自然语义断点拆分，**禁止跨知识点拼接凑行数**
+
     - **左上对齐**：讲解文字必须 `.next_to(title, DOWN, buff=0.5).to_edge(LEFT, buff=0.3)`，从**左上角**开始，**严禁Y轴居中**
     - **位置固定**：首批出现时记录 `lecture_pos = self.lecture.get_corner(UL)`，后续批次用 `.align_to(lecture_pos, UL)` 保持左上对齐
     - **切换方式**：当前批次讲完 → `FadeOut` + `self.remove()` → 新批次在**原位置左上对齐**显示
-    - **示例**：7行文字 → 按语义分为[1-3行] + [4-7行]，或[1-4行] + [5-7行]
 
     **【关键】右侧动画区域（严禁出框，必须在标题下方）：**
     ```python
@@ -267,11 +351,11 @@ def get_prompt3_code(
     RIGHT_CENTER = np.array([3.5, -0.5, 0])  # 中心点下移，避免与标题重叠
     RIGHT_TOP_Y = 3.0    # 右侧区域上边界（在标题下方）
     RIGHT_BOTTOM_Y = -3.5  # 右侧区域下边界
-    
+
     # 所有右侧元素：先 move_to(RIGHT_CENTER)，再检查尺寸和边界
     if obj.width > 6.0: obj.scale_to_fit_width(6.0)
     if obj.height > 5.5: obj.scale_to_fit_height(5.5)
-    
+
     # ⚠️ 检查上下边界
     if obj.get_top()[1] > RIGHT_TOP_Y:
         obj.shift(DOWN * (obj.get_top()[1] - RIGHT_TOP_Y + 0.2))
@@ -322,6 +406,50 @@ def algo(data):
     - **逻辑外显化**: 条件判断显示 `MathTex("5 > 3")`，成立变绿/不成立变红
     - **递归**: 在屏幕一角维护 Stack VGroup，每层递归 add 矩形，返回时 remove
 
+    ### 🔴 规则 6：讲解文字必须"讲到变色，讲完恢复" 🔴
+    
+    **每一句讲解文字都必须：讲到时变色 → 讲完后恢复原色 `#2C1608`。严禁跳过任何一句！**
+    注意：一句可能拆分为多行，则多行一起变色和恢复原色！
+    
+    基类提供两种方式，按需选用：
+    ```python
+    # 方式A：简单高亮，无需在高亮期间播放其他动画
+    self.speak_and_highlight(0, "#C35101")              # 变色→等1.5秒→自动恢复
+    self.speak_and_highlight(1, "#1A7F99", wait_time=2) # 可自定义等待时长
+    
+    # 方式B：高亮期间需要播放右侧动画时，手动配对
+    self.play(self.highlight_lecture_line(0, "#C35101"))  # 变色
+    self.play(Create(some_right_side_obj))                # 播放动画
+    self.play(self.unhighlight_lecture_line(0))            # 必须恢复！
+    ```
+
+    ### 🔴 规则 7：方块+文字标签的正确组合方式（严禁 arrange 分离！）🔴
+
+    **创建带文字标签的方块数组时，必须先把每个方块和文字组合成一个单元，再整体排列。**
+    **严禁先 move_to 叠放文字，再对包含方块和文字的 VGroup 调用 arrange()，这会把文字挤到方块右边！**
+
+    ```python
+    # ✅ 正确：每个方块和文字组成一个单元，再排列
+    chars = ["a", "b", "c", "d"]
+    cells = VGroup()
+    for c in chars:
+        sq = Square(side_length=0.5, color="#e4c8a6", fill_color="#fff7e8", fill_opacity=0.8)
+        txt = Text(c, font="Noto Sans SC", font_size=18, color="#2C1608")
+        txt.move_to(sq)  # 文字叠在方块中心
+        cells.add(VGroup(sq, txt))  # 组合成一个单元
+    cells.arrange(RIGHT, buff=0.05)  # 整体排列
+
+    label = Text("s = ", font="Noto Sans SC", font_size=20, color="#2C1608")
+    row = VGroup(label, cells).arrange(RIGHT, buff=0.2)
+
+    # ❌ 错误：方块和文字分开放入 VGroup 再 arrange（文字会被挤到右边！）
+    squares = VGroup(*[Square(side_length=0.5) for _ in range(4)]).arrange(RIGHT, buff=0.05)
+    texts = VGroup(*[Text(c, ...) for c in chars])
+    for i, t in enumerate(texts):
+        t.move_to(squares[i])  # 先叠放
+    row = VGroup(label, squares, texts).arrange(RIGHT, buff=0.2)  # ❌ arrange 会把 texts 整体挤到 squares 右边！
+    ```
+
     ### 3. 数据结构映射
     - **Array/DP Table**: `VGroup` of `Square`，必须标 Index
     - **Tree/Graph**: `Graph` 类或 `Circle` + `Line`
@@ -348,6 +476,9 @@ def algo(data):
             # 🔴🔴🔴 第一行必须调用 setup_layout()！设置背景色和基础布局 🔴🔴🔴
             self.setup_layout("{section.title}", {section.lecture_lines[:4]})
             
+            # 🔴 讲到第1行讲解文字时高亮，播放对应动画，然后恢复
+            self.play(self.highlight_lecture_line(0, "#C35101"))  # 第1行变色
+            
             # 1. 创建代码块 - 🔴 必须使用 self.create_code_block()！
             code_raw = \"\"\"# {target_language} 示例
 def algo(data):
@@ -356,11 +487,26 @@ def algo(data):
             code = self.create_code_block(code_raw, language="{target_language.lower()}")
             code.to_edge(DOWN, buff=0.3).to_edge(LEFT, buff=0.3)
             self.play(Create(code))
+            self.wait(0.5)
+            self.play(self.unhighlight_lecture_line(0))  # 第1行恢复原色
+            
+            # 🔴 讲到第2行讲解文字时高亮
+            self.play(self.highlight_lecture_line(1, "#1A7F99"))  # 第2行变色
             
             # 2. Data Structures
             array_group = VGroup(*[Square() for _ in range(5)]).arrange(RIGHT)
             
-            # 3. Execution Trace
+            # 3. 勾叉标记 - 🔴 必须用 MathTex，严禁用 Text！
+            correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)  # 绿色勾 ✓
+            wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)        # 红色叉 ✗
+            
+            self.wait(0.5)
+            self.play(self.unhighlight_lecture_line(1))  # 第2行恢复原色
+            
+            # 🔴 讲到第3行时用简便方法（高亮→等待→自动恢复）
+            self.speak_and_highlight(2, "#478211", wait_time=2)
+            
+            # 4. Execution Trace
             code_lines = code[2]
             highlight = SurroundingRectangle(code_lines[0], color=YELLOW, buff=0.05)
             self.play(Create(highlight))
@@ -380,71 +526,38 @@ def algo(data):
     Text("讲解文字", font="Noto Sans SC", font_size=20, color="#2C1608")  # 讲解文字必须 font_size=20
     ```
     
-    **【🚨🚨🚨 数字与数学表达式 - 必须使用 MathTex！🚨🚨🚨】**
+    **【🚨🚨🚨 数学表达式与特殊符号 - 必须用 MathTex！🚨🚨🚨】**
     
-    **🔴🔴🔴 这是最重要的规则之一！违反会导致显示异常！🔴🔴🔴**
+    **完整规则详见上方规则 1 和规则 1.1，以下是快速参考：**
     
-    **核心规则：只要包含以下任何内容，必须使用 MathTex，严禁使用 Text()：**
-    - 数学公式（如 `O(log n)`, `n²`, `2^7`）
-    - 比较表达式（如 `5 > 3`, `mid = 5`）
-    - 复杂度表示（如 `O(n)`, `O(log₂n)`）
-    - 任何包含上标、下标、特殊数学符号的内容
-    
-    **为什么必须用 MathTex？**
-    - Text() 在 Noto Sans SC 字体下**无法正确显示**数学符号（`²`, `⁷`, `×`, `÷`, `log₂` 等会变成**方框**）
-    - MathTex 使用 LaTeX 渲染，效果完美
-    - 这不是建议，是**强制要求**
-    
-    **✅ 简单规则：包含数字/数学符号的表达式 → 必须用 MathTex**
+    **核心原则：** Text() 无法渲染数学符号和特殊符号（会变方框），必须用 MathTex。
     
     ```python
-    # ✅ 正确：纯数学表达式直接用 MathTex
-    MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
-    MathTex(r"O(\log_2 n)", color="#2C1608").scale(0.8)
-    MathTex(r"100 \times 10 = 1000", color="#2C1608").scale(0.8)
+    # ✅ 正确示例
+    MathTex(r"O(\log_2 n)", color="#9B6D0B").scale(0.8)        # 复杂度
+    MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)    # 数学表达式
+    MathTex(r"\\checkmark", color="#478211").scale(1.2)          # 绿色勾 ✓
+    MathTex(r"\\times", color="#C84A2B").scale(1.2)              # 红色叉 ✗
     
-    # ✅ 正确：中文 + 数学表达式，用 VGroup 组合
-    explain_text = VGroup(
+    # ✅ 中文+数学混排
+    VGroup(
         Text("因为：", font="Noto Sans SC", font_size=20, color="#2C1608"),
         MathTex(r"2^7 = 128 > 100", color="#9B6D0B").scale(0.8)
     ).arrange(RIGHT, buff=0.2)
+    
+    # ❌ 错误：以下写法全部会显示方框！
+    # Text("✓")  Text("✗")  Text("×")  Text("O(n²)")  Text("log₂n")
     ```
     
-    **❌ 绝对禁止：在 Text() 中写数字表达式**
-    ```python
-    # ❌ 错误：用 Text 显示数学表达式
-    Text("2⁷ = 128 > 100")      # ❌ 上标会变方框
-    
-    # ❌ 错误：用注释说"避免LaTeX问题"然后用纯文本 - 这是错误的！
-    # 不要写：if "log₂" in line: text_obj = Text(line, ...)  # ❌ 依然会显示方框
-    ```
-    
-    **🔍 检查清单（生成代码前必须确认）：**
-    - [ ] 讲解文字中是否包含 `log`、`O(`、`×`、`²`、`≤` 等？如果有，必须拆分为 Text + MathTex
-    - [ ] 是否使用了 VGroup(...).arrange(RIGHT, buff=0.1) 来组合？
-    - [ ] MathTex 是否设置了 .scale(0.8) 使大小与 Text 匹配？
-    
-    **【需要用 MathTex 的符号清单】**
+    **【需要用 MathTex 的符号速查表】**
     | 符号类型 | 常见符号 | MathTex 写法 |
     |---------|---------|-------------|
-    | 下标 | ₂, ₃, ₙ | `r"_2"`, `r"_3"`, `r"_n"` |
-    | 上标 | ², ³, ⁿ | `r"^2"`, `r"^3"`, `r"^n"` |
-    | 运算符 | ×, ÷, ±, ≤, ≥, ≠ | `r"\\times"`, `r"\\div"`, `r"\\pm"`, `r"\\leq"`, `r"\\geq"`, `r"\\neq"` |
-    | 对数 | log₂ | `r"\\log_2"` |
-    | 希腊字母 | α, β, θ | `r"\\alpha"`, `r"\\beta"`, `r"\\theta"` |
-    | 箭头 | →, ← | `r"\\rightarrow"`, `r"\\leftarrow"` |
-    | 无穷 | ∞ | `r"\\infty"` |
-    | **勾/叉** | ✓, ✗ | `r"\\checkmark"` (绿勾), `r"\\times"` (红叉) |
+    | 上标/下标 | ², ³, ₂, ₙ | `r"^2"`, `r"^3"`, `r"_2"`, `r"_n"` |
+    | 运算符 | ×, ÷, ≤, ≥, ≠ | `r"\\times"`, `r"\\div"`, `r"\\leq"`, `r"\\geq"`, `r"\\neq"` |
+    | 对数/无穷 | log₂, ∞ | `r"\\log_2"`, `r"\\infty"` |
+    | **勾/叉** | **✓, ✗** | **`r"\\checkmark"`（绿勾）, `r"\\times"`（红叉）** |
     
-    **【勾和叉的正确用法】**
-    ```python
-    # ✅ 正确：用 MathTex 显示勾和叉
-    correct_mark = MathTex(r"\\checkmark", color="#478211").scale(1.2)  # 绿色勾
-    wrong_mark = MathTex(r"\\times", color="#C84A2B").scale(1.2)        # 红色叉
-    
-    # ❌ 错误：直接在 Text 中使用会显示方框
-    # Text("✗", font="Noto Sans SC")  # 无法显示！
-    ```
+    **⚠️ 违反此规则 = 显示方框 = 生成失败**
     
     **【配色表】** `背景颜色: #FFFDF4` 【奶油白色背景，严禁使用纯黑背景】
     | 语义 | 文字色 | 背景色 | 边框色 | 样式 |
@@ -480,7 +593,73 @@ def algo(data):
         - VGroup 的 arrange() 后必须检查并缩放
     - **背景保护**: 叠加标签加 `.add_background_rectangle(color=BLACK, opacity=0.8)`
     - **间距预留**: VGroup 使用 `.arrange(DOWN, buff=0.5)`
-    - **智能清理**: 新元素出现前，若旧元素会被遮挡且不再使用，先 `FadeOut` 后必须 `self.remove(obj)` 彻底移除
+
+    **🔴 放新元素前的清理检查（必须遵守！防止右侧元素堆叠重叠）：**
+
+    每次在右侧放置新的主要元素（数组、表格、图、大文字块等）前，必须执行以下 3 步：
+    1. **盘点**：列出当前右侧还存在哪些元素
+    2. **判断**：哪些元素在后续动画中不再被引用？（不再 Transform、不再 move_to、不再读取位置）
+    3. **清理**：对不再需要的元素执行 `FadeOut` + `self.remove()`，然后再添加新元素
+
+    ```python
+    # ✅ 正确：放新数组前，先清理旧的不再使用的元素
+    self.play(FadeOut(old_array), FadeOut(old_labels), FadeOut(old_pointer))
+    self.remove(old_array, old_labels, old_pointer)
+    # 清理完毕后，再创建和添加新元素
+    new_array = VGroup(*[Square(side_length=0.6) for _ in range(8)]).arrange(RIGHT, buff=0.1)
+    new_array.move_to([3.5, -0.5, 0])
+    self.play(FadeIn(new_array))
+
+    # ✅ 正确：保留还在用的元素，只清理不用的
+    # old_pointer 后面还要用，所以只清理 old_labels
+    self.play(FadeOut(old_labels))
+    self.remove(old_labels)
+    new_labels = VGroup(...)
+    self.play(FadeIn(new_labels))
+
+    # ❌ 错误：不清理旧元素就直接添加新元素（导致重叠！）
+    new_array = VGroup(...)  # ❌ 旧数组还在原位，新旧重叠！
+    self.play(FadeIn(new_array))
+    ```
+
+    ### 🔴🔴🔴 生成代码后必须执行的自检（Final Check）🔴🔴🔴
+
+    **🚨 FATAL ERROR 检查 — 包含以下任何一行 = 代码作废，渲染必定失败！🚨**
+
+    在输出代码前，对你的代码执行以下搜索。如果命中任何一条，必须立即修正，否则代码无法运行：
+
+    | 🚨 搜索这个模式 | ⚠️ 问题 | ✅ 必须改为 |
+    |----------------|---------|-----------|
+    | `Text("✓"` | 会显示方框 | `MathTex(r"\\checkmark", color=...).scale(1.2)` |
+    | `Text("✔"` | 会显示方框 | `MathTex(r"\\checkmark", color=...).scale(1.2)` |
+    | `Text("√"` | 会显示方框 | `MathTex(r"\\checkmark", color=...).scale(1.2)` |
+    | `Text("✗"` | 会显示方框 | `MathTex(r"\\times", color=...).scale(1.2)` |
+    | `Text("✘"` | 会显示方框 | `MathTex(r"\\times", color=...).scale(1.2)` |
+    | `Text("×"` | 会显示方框 | `MathTex(r"\\times", color=...).scale(1.2)` |
+    | `Text("O(` | 数学符号方框 | 拆分为 Text + MathTex 的 VGroup |
+    | `Text("log` | 数学符号方框 | 拆分为 Text + MathTex 的 VGroup |
+    | `Text(".*log₂.*")` | 下标渲染不稳定/方框 | 拆分为 Text + `MathTex(r"\\log_2 n")` |
+    | `Code(code_string=` | 样式错误 | `self.create_code_block(` |
+    | `self.add_to_right(` | ❌ 该方法已删除！ | 手动 `move_to` + 边界检查 + `self.play(FadeIn(...))` |
+    | `self.remove_from_right(` | ❌ 该方法已删除！ | `self.play(FadeOut(...))` + `self.remove(...)` |
+    | `self.clear_right_area(` | ❌ 该方法已删除！ | 逐个 `FadeOut` + `self.remove()` |
+    | `# 使用 Text 代替 MathTex` | ❌ 严禁替换！环境已配置 LaTeX | 保持 MathTex，修复 LaTeX 语法 |
+    | `# 避免 LaTeX` | ❌ 严禁以此为借口 | 保持 MathTex，环境没有 LaTeX 问题 |
+
+    **🔴🔴🔴 严禁使用 `self.add_to_right()` — 该方法不存在！🔴🔴🔴**
+    基类 `TeachingScene` 中没有 `add_to_right`、`remove_from_right`、`clear_right_area` 方法。
+    如果你的代码中出现这些调用，运行时会直接报 `AttributeError` 崩溃！
+    正确做法：手动 `move_to()` 定位 → 检查边界 → `self.play(FadeIn(obj))` 添加。
+
+    **完整自检步骤（必须全部执行）：**
+    1. 搜索所有 `Text(` 调用，检查内容是否包含 ✓✗×√ 或数学符号 → 必须改为 MathTex，否则运行必定失败！
+    2. 专项检查所有讲解行：若行文本含 `O(`/`log`/`²`/`₂`/`ₙ`/`^`/`=`/`≤`/`≥`/`✓`/`✗`，禁止整句 `Text(line, ...)`，必须改为 Text + MathTex 混排（重点检查 `log₂n`）
+    3. 检查每一行讲解文字是否都有 `highlight_lecture_line` / `speak_and_highlight` 调用
+    4. 检查每个 `highlight_lecture_line` 是否都有对应的 `unhighlight_lecture_line`（必须成对出现！）
+    5. 检查每行讲解文字是否超过20个中文字符，超过则拆行（不超过20字的短句不要强行拆开）
+    6. 检查讲解文字分批是否按语义切分，不同知识点不能混在同一批
+    7. 检查右侧是否出现“**大型图案 + 右侧文字标注并存**”的情况；若出现，必须删除右侧文字或先切换场景后再显示
+    8. 专项检查 `self.setup_layout(..., lecture_lines)` 的首批行：若包含 `O(` / `log` / `²` / `₂` / `ₙ` / `^` / `=` / `≤` / `≥`，必须改写为纯中文描述，并将公式改到右侧 `MathTex`
 """
 
 
@@ -527,6 +706,7 @@ def get_regenerate_note(attempt, MAX_REGENERATE_TRIES, error_message: str = None
 | 对象属性错误 | 修正属性名或方法调用 | 删除该对象 |
 | 动画冲突 | 调整动画顺序或使用 AnimationGroup | 删除动画 |
 | LaTeX 错误 | 修复 LaTeX 语法 | 改用纯文本（会显示方框） |
+| **MathTex 报错** | **修复 LaTeX 语法本身** | **把 MathTex 改成 Text（严禁！）** |
 | **引号嵌套错误** | 内层用单引号 `'` | 内层用中文双引号 `"` |
 
 **🔴 引号嵌套规则（非常重要！）：**
