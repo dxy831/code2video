@@ -8,7 +8,8 @@ def get_prompt3_code(
     section,
     base_class: str,
     user_profile: Optional[UserProfile] = None,
-    estimated_duration: Optional[int] = None
+    estimated_duration: Optional[int] = None,
+    solution_code: Optional[str] = None
 ):
     """
     生成Manim代码的提示词
@@ -19,6 +20,7 @@ def get_prompt3_code(
         base_class: 基类代码
         user_profile: 用户配置，可选
         estimated_duration: 该章节的预计时长（秒），可选
+        solution_code: 用户提供的标准答案代码（可选）
     
     Returns:
         完整的提示词字符串
